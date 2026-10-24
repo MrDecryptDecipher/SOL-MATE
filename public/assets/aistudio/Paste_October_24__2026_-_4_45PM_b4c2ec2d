@@ -1,0 +1,855 @@
+# BUILD SOL-MATE — ADVANCED SOLANA TRANSACTION FORENSICS PLATFORM
+
+## 1. PRODUCT IDENTITY
+
+Build a complete, working, highly polished Solana blockchain forensics web application.
+
+**Product name:** SOL-MATE  
+**Tagline:** Every Transaction. Every Account. Every Connection.  
+**Built by:** Sandeep Kumar Sahoo  
+**Product category:** Solana Transaction Intelligence, Wallet Forensics and On-Chain Security Analysis.
+
+This is not a landing-page prototype, static dashboard, or UI-only demonstration. Build the actual application with working data retrieval, transaction decoding, account resolution, authority analysis, state analysis, interactive visualizations, and evidence-backed investigation reports.
+
+The user must be able to enter a real Solana transaction signature and investigate it comprehensively using live on-chain data.
+
+Do not stop after designing the interface. Implement the entire functional application, test the core workflows, and fix integration errors.
+
+## 2. NON-NEGOTIABLE REQUIREMENTS
+
+1. No mock transactions, fabricated wallet balances, invented labels, simulated activity, fake risk scores, placeholder charts, or hardcoded investigation results.
+2. Every displayed blockchain fact must come from a real RPC response, a verifiable on-chain computation, or an explicitly identified external metadata source.
+3. Never invent a wallet's identity, controller, ownership, intent, or relationship to another wallet.
+4. Never claim that an account has a particular authority or permission unless the relevant account state, instruction, program configuration, or documented derivation supports that conclusion.
+5. If information is unavailable from the RPC endpoint, display "Unavailable from current RPC" and explain why.
+6. Handle failed transactions, unsupported transaction versions, pruned history, rate limits, malformed signatures, missing metadata, and network outages gracefully.
+7. The application must work with genuine mainnet transactions without requiring a paid RPC API key.
+8. Do not request a wallet seed phrase, private key, wallet connection, or transaction-signing permission. SOL-MATE is strictly read-only.
+9. Do not claim complete historical coverage when the RPC provider cannot supply it.
+10. Do not substitute fabricated fallback data when a request fails.
+
+Deliver a working application, not just a plan or source-code explanation.
+
+## 3. TECHNOLOGY STACK
+
+Use a modern, maintainable web stack compatible with Google AI Studio Build mode.
+
+Preferred stack:
+- React and TypeScript.
+- Vite if supported by the environment.
+- Tailwind CSS.
+- shadcn/ui or equivalent accessible UI primitives.
+- Lucide icons.
+- Recharts for real-data charts.
+- React Flow or a comparable graph visualization library for account and instruction graphs.
+- Official Solana web3.js-compatible libraries for transaction parsing, public-key handling, and RPC access.
+- A reliable Base58 decoder and appropriate SPL Token libraries.
+- A robust schema-validation library such as Zod.
+
+Use current, mutually compatible package versions and verify imports and APIs against installed versions.
+
+Keep RPC access, transaction parsing, forensic analysis, and UI rendering in separate modules.
+
+Do not build a monolithic component. Create a maintainable codebase with typed domain models, reusable components, dedicated data-access services, analysis modules, and error-handling utilities.
+
+If the environment supports a backend, use it for shared caching, request coordination, and secure server-side functionality. Otherwise, implement the application as a client-side read-only application with explicit public-endpoint limitations.
+
+Never invent API credentials.
+
+## 4. RPC CONFIGURATION
+
+Use the following mainnet endpoints:
+
+HTTP RPC:
+https://solana.api.onfinality.io/public
+
+WebSocket:
+wss://solana.api.onfinality.io/public-ws
+
+Network:
+Solana Mainnet
+
+The public endpoint has a target limit of 5 HTTP requests per second for this application. Enforce this conservatively.
+
+All endpoint URLs must be configurable in one central settings module. Do not scatter endpoint strings across components.
+
+Implement:
+
+- A global HTTP request queue.
+- A strict maximum of 5 HTTP requests in any one-second rolling window.
+- A small configurable safety margin below the limit where practical.
+- Request deduplication for identical in-flight requests.
+- A cache keyed by network, RPC method, parameters, and commitment.
+- Exponential backoff with jitter for HTTP 429 responses and transient failures.
+- Respect Retry-After when provided.
+- Bounded retries, cancellation, timeouts, and clear error messages.
+- Concurrency control for expensive account and history lookups.
+- Request prioritization so primary transaction data loads before optional enrichment.
+- Request counters, queue depth, response latency, and rate-limit telemetry.
+- A manual retry action.
+- A provider health indicator.
+
+Do not retry invalid signatures or deterministic JSON-RPC errors indefinitely.
+
+Use HTTP for request-response calls. Use WebSocket subscriptions only for relevant real-time updates.
+
+Use the supplied WebSocket endpoint for supported subscriptions. Reconnect with exponential backoff, avoid duplicate subscriptions, resubscribe after reconnecting, and clean up subscriptions on unmount.
+
+Do not poll aggressively or create a WebSocket subscription for every discovered account.
+
+When the provider cannot support a requested query, show the limitation rather than repeatedly retrying.
+
+Use confirmed or finalized commitment appropriately. For forensic reports, prefer finalized transaction data where available and explicitly label the commitment used.
+
+Provide a configurable alternative HTTP endpoint for future provider changes, but do not silently switch providers without displaying the active provider.
+
+## 5. PRIMARY USER WORKFLOW
+
+The primary workflow must be straightforward:
+
+1. User opens SOL-MATE.
+2. User enters a Solana transaction signature.
+3. User selects Mainnet or another explicitly configured supported cluster.
+4. User clicks "Investigate Transaction".
+5. The application validates the signature's Base58 encoding and expected length.
+6. The application retrieves the actual transaction from RPC.
+7. The application parses the message, account keys, outer instructions, inner instructions, metadata, logs, and balance changes.
+8. The application resolves every referenced account it can using appropriate RPC calls.
+9. The application builds a transaction execution graph and account relationship graph.
+10. The application performs authority, asset-flow, account-state, and execution analysis.
+11. The application renders findings progressively as evidence becomes available.
+12. The user can inspect individual addresses, instructions, program calls, balance deltas, and evidence.
+13. The user can export a complete investigation report containing the evidence and limitations.
+
+Do not wait for optional enrichment to finish before displaying core transaction information.
+
+Show separate loading states for:
+- Transaction retrieval.
+- Instruction decoding.
+- Account resolution.
+- Authority analysis.
+- Historical context.
+- Graph construction.
+- Report generation.
+
+Support direct linking to an investigation using the transaction signature in the URL.
+
+## 6. TRANSACTION FORENSICS ENGINE
+
+Implement a real transaction parser.
+
+Retrieve transaction data using getTransaction with a suitable encoding and maxSupportedTransactionVersion configuration.
+
+Extract and normalize:
+
+- Transaction signature.
+- Slot.
+- Block time, when available.
+- Transaction version.
+- Commitment or finality context.
+- Execution success or failure.
+- Error details.
+- Transaction fee in lamports and SOL.
+- Recent blockhash.
+- Static account keys.
+- Loaded writable addresses.
+- Loaded read-only addresses.
+- Required signatures.
+- Signer accounts.
+- Outer instructions.
+- Inner instructions.
+- Program invocation logs.
+- Compute units consumed.
+- Return data, when present.
+- Pre-transaction SOL balances.
+- Post-transaction SOL balances.
+- Pre-token balances.
+- Post-token balances.
+- Token mint addresses.
+- Token-account owners reported in metadata.
+- Token decimals and raw token amounts.
+- Address Lookup Table references.
+- Compute Budget instructions.
+- Account creation and closure instructions.
+- Relevant program-specific instructions.
+
+Support both legacy and versioned transactions.
+
+For v0 transactions, resolve account indices against the correctly ordered combined key list containing static keys and loaded addresses. Do not resolve all instruction indices against static keys alone.
+
+Handle missing inner instructions, absent logs, null block times, unavailable metadata, and incomplete RPC responses without crashing.
+
+Use BigInt or equivalent exact integer arithmetic for lamports, token base units, and large raw values. Never use floating-point arithmetic as the authoritative representation of token quantities.
+
+Display both raw values and correctly formatted human-readable values.
+
+Clearly distinguish:
+- Transaction-level facts.
+- Instruction-level facts.
+- Account-state observations.
+- Derived calculations.
+- Heuristic conclusions.
+
+## 7. ADDRESS INTELLIGENCE — INVESTIGATE EVERY ADDRESS
+
+Create an address registry for all unique accounts referenced by the transaction.
+
+Include:
+- Static account keys.
+- Loaded writable addresses.
+- Loaded read-only addresses.
+- Program IDs.
+- Token accounts.
+- Token mint accounts.
+- System accounts.
+- Accounts mentioned in supported decoded instructions.
+- Additional accounts discovered through bounded account-resolution queries.
+
+For each address, display:
+
+### Basic identity
+- Full public key.
+- Copy-address action.
+- Solscan link.
+- Solana Explorer link.
+- Address category.
+- Classification confidence and evidence.
+
+### Account state
+- Account owner program from getAccountInfo.
+- Lamports and SOL balance.
+- Executable flag.
+- Data length.
+- Rent-exemption status, where it can be correctly calculated.
+- Account existence or missing-account state.
+- Account-data decoding status.
+- Observation slot or context slot when supplied.
+- Last-updated or retrieval timestamp for the displayed state.
+
+### Transaction role
+- Transaction signer.
+- Fee payer.
+- Writable or read-only account.
+- Source or destination of a transfer.
+- Token-account owner.
+- Token delegate.
+- Mint authority.
+- Freeze authority.
+- Close authority.
+- Program ID.
+- Program-derived address.
+- Address Lookup Table account.
+- Other roles only when supported by evidence.
+
+An address may have multiple roles. Never force each address into one exclusive category.
+
+### Important distinction
+
+The Solana account owner program is not necessarily the human or wallet controlling an account.
+
+A token account's internal owner authority is not the same as its outer account owner program.
+
+A program-derived address is not necessarily a user wallet.
+
+A transaction signer is not necessarily the owner of every account used in the transaction.
+
+Explain these distinctions in the UI.
+
+For each role, provide a "Why this role?" evidence panel showing the instruction, account state, RPC field, or derivation that supports the classification.
+
+If an address cannot be classified, label it "Unclassified account" instead of guessing.
+
+## 8. AUTHORITY AND PERMISSION ANALYSIS
+
+This is a core feature.
+
+Determine what powers an address has over a particular account or program, based only on verifiable evidence.
+
+### SPL Token and Token-2022
+
+Decode supported token-account and mint state, including:
+
+- Mint authority.
+- Freeze authority.
+- Token-account owner authority.
+- Delegate and delegated amount.
+- Close authority, where supported.
+- Raw token amount.
+- Mint decimals.
+- Initialized or frozen state.
+- Token program ID.
+- Supported Token-2022 extensions.
+- Transfer-fee configuration and withheld fees where the extension and state are available.
+- Other recognized extensions where they can be decoded reliably.
+
+Do not treat an ordinary token transfer as proof of minting authority.
+
+Do not treat the current authority as necessarily the authority at the time of an old transaction. If historical state is unavailable, explicitly distinguish current state from transaction-time evidence.
+
+### Multisig analysis
+
+Where a supported multisig account format is identified, decode its threshold and configured signers.
+
+Distinguish:
+- Configured multisig members.
+- Signers actually present in the transaction.
+- Signers relevant to the specific instruction.
+- Whether the available evidence establishes that the threshold was met.
+
+Do not infer a multisig configuration from an arbitrary list of signers.
+
+### Program authority
+
+For supported programs, inspect verifiable upgrade-authority or configuration state.
+
+For upgradeable programs, distinguish the program account, ProgramData account, executable state, and upgrade authority where applicable.
+
+If a program uses a different deployment model or an unknown loader, do not apply an incorrect upgrade-authority interpretation.
+
+### Authority graph
+
+Build an interactive graph:
+
+Authority address → controlled account or configuration → affected asset or program.
+
+Each edge must include:
+- Relationship type.
+- Evidence source.
+- Observation time or slot where available.
+- Confidence or verification status.
+- Whether the relationship is current or historical.
+
+Never label a person as the owner of a wallet unless there is reliable external evidence explicitly supporting that claim.
+
+## 9. ACCOUNT STATE AND STATE TRANSITIONS
+
+Build an account-state investigation module.
+
+For each account referenced by the transaction, attempt to reconstruct the state changes observable from transaction metadata.
+
+Analyze:
+- SOL balance changes.
+- Token balance changes.
+- Token-account creation.
+- Token-account initialization.
+- Account closure.
+- Rent funding and recovery.
+- Token minting.
+- Token burning.
+- Authority changes.
+- Delegate approvals and revocations.
+- Freeze and thaw operations.
+- Program configuration changes.
+- Other recognized state transitions.
+
+Use decoded instructions, logs, account metadata, and balance deltas together.
+
+For each inferred transition, display:
+- Account.
+- State field or asset affected.
+- Before state, if actually available.
+- After state, if actually available.
+- Transaction instruction responsible.
+- Evidence supporting the change.
+- Missing information.
+- Confidence.
+
+Important: Standard transaction metadata does not provide arbitrary before-and-after snapshots of every account-data field.
+
+Do not invent pre-state or post-state account data.
+
+If a state transition cannot be established from the transaction and available account state, mark it "Not fully reconstructable from available RPC evidence."
+
+Support transaction-time state reconstruction only when the necessary historical data exists.
+
+## 10. INSTRUCTION DECODING AND EXECUTION TRACE
+
+Build a nested execution inspector.
+
+Display the transaction as an expandable instruction tree:
+
+Transaction
+  → Outer instruction
+    → Invoked program
+      → Inner instruction / CPI
+        → Nested invocation where supported
+
+For every instruction, show:
+- Instruction index.
+- Program ID.
+- Program name only if verified.
+- Raw instruction data.
+- Decoded instruction name where supported.
+- Account indices and resolved addresses.
+- Signer and writable flags.
+- Inner instructions.
+- Invocation depth where available.
+- Relevant program logs.
+- Execution outcome where established.
+- Compute units where available.
+- Related SOL or token balance deltas.
+
+Decode common programs and instructions, including:
+- System Program transfers and account creation.
+- SPL Token instructions.
+- Token-2022 instructions.
+- Associated Token Account instructions.
+- Compute Budget instructions.
+- Address Lookup Table operations.
+- Stake Program operations.
+- Supported Memo Program instructions.
+- Other programs through reliable IDLs or known binary layouts.
+
+Use a modular decoder registry.
+
+For unfamiliar programs, show the raw instruction data and account mapping.
+
+Do not fabricate decoded instruction names from arbitrary bytes.
+
+For inner instruction stack depth, use available stackHeight and logs where applicable. Explain when the exact execution order or nested call depth cannot be recovered.
+
+## 11. SOL AND TOKEN FLOW RECONCILIATION
+
+Create an asset-flow engine.
+
+For SOL:
+- Compare preBalances and postBalances.
+- Calculate each account's net lamport delta.
+- Identify transaction fees.
+- Identify supported account-creation funding.
+- Identify rent-related funding or recovery when supported.
+- Distinguish gross transfers from net balance changes.
+- Explain why not every balance decrease represents a direct transfer.
+
+For tokens:
+- Reconcile preTokenBalances and postTokenBalances.
+- Match token accounts using account indices.
+- Match mint addresses and owner fields.
+- Use raw token amounts and decimals.
+- Detect minting and burning only when supported by instructions and balance evidence.
+- Identify accounts missing from one side of the metadata.
+- Account for Token-2022 behavior where supported.
+
+Create interactive Sankey-style or directed flow visualizations for observed asset movements.
+
+Every edge must have:
+- Source.
+- Destination.
+- Asset.
+- Amount.
+- Instruction reference.
+- Evidence.
+- Confidence.
+
+Distinguish direct transfers from inferred economic flows.
+
+Never present an unexplained net balance change as a proven direct transfer.
+
+## 12. WALLET AND ADDRESS HISTORY
+
+For each relevant address, provide an optional "Explore History" view.
+
+Use getSignaturesForAddress with bounded pagination and getTransaction for selected signatures.
+
+Show:
+- Recent signatures retrieved.
+- Transaction dates when available.
+- Transaction success or failure.
+- Slots.
+- SOL and token changes when obtainable.
+- Programs interacted with.
+- Incoming and outgoing transfer evidence.
+- Related accounts discovered in the inspected history.
+
+Let the investigator select a time window, page size, and maximum transaction count.
+
+Set strict query budgets and display the actual number of transactions analyzed.
+
+Do not claim to have searched the entire blockchain history when only a bounded number of signatures were inspected.
+
+Do not claim that a wallet is funded by, owned by, or operated by another address merely because an asset transfer occurred between them.
+
+Display relationships as "Observed transfer from X to Y" unless stronger evidence supports a more specific statement.
+
+If the provider does not expose archival data for a requested historical period, explain that limitation.
+
+## 13. ADDRESS RELATIONSHIP GRAPH
+
+Build a polished interactive network graph using React Flow or an equivalent graph library.
+
+Nodes represent:
+- Wallet-like accounts.
+- Token accounts.
+- Token mints.
+- Programs.
+- Program-derived addresses.
+- Multisig accounts.
+- Lookup tables.
+- Other classified accounts.
+
+Edges represent:
+- Transfer.
+- Token-account ownership authority.
+- Mint authority.
+- Freeze authority.
+- Delegate relationship.
+- Program invocation.
+- Account creation.
+- Account closure.
+- Observed interaction.
+- Other supported relationships.
+
+Requirements:
+- Zoom, pan, drag, fit-to-screen, and reset layout.
+- Expand and collapse account neighborhoods.
+- Click a node to open the account investigation panel.
+- Click an edge to inspect its evidence.
+- Filter by asset, program, authority, relationship type, and time.
+- Highlight transaction-specific paths.
+- Toggle current-state relationships versus transaction-time evidence.
+- Display direction and amounts where relevant.
+- Prevent duplicate nodes and duplicate edges.
+- Handle large graphs with configurable node and edge limits.
+- Provide a searchable node list as an accessible alternative.
+
+Use distinct visual styles for verified, derived, and uncertain relationships. Include a legend.
+
+Do not invent connections to make the graph look complete.
+
+## 14. SECURITY AND RISK ANALYSIS
+
+Create a transparent, evidence-backed analysis engine.
+
+Check for observable patterns such as:
+- Unexpected minting.
+- Freeze-authority presence.
+- Authority changes.
+- Suspiciously large asset movements relative to available context.
+- Repeated failed instructions.
+- Unusual program interactions.
+- Newly created token accounts.
+- Delegate approvals.
+- Token-account closure.
+- Concentrated balances among observed accounts.
+- Complex cross-program execution.
+- Known malicious program or address matches only when a reliable threat-intelligence source is actually integrated.
+
+Do not label an address malicious merely because it interacts with a high-value account, unknown program, DEX, bridge, or intermediary wallet.
+
+Do not claim that a transaction is an exploit without evidence supporting the exploit mechanism.
+
+Use a finding structure:
+- Finding title.
+- Severity, if justified.
+- Evidence.
+- Relevant accounts.
+- Relevant instructions.
+- Observed impact.
+- Confidence.
+- Limitations.
+- Recommended follow-up.
+
+If a risk score is implemented, show its underlying rule contributions and explain that it is a heuristic rather than an authoritative security verdict.
+
+When there is insufficient evidence, report "Insufficient evidence for a reliable risk classification."
+
+## 15. REAL-TIME MONITORING
+
+Use the configured public WebSocket endpoint for supported real-time functionality.
+
+Implement:
+- Connection status.
+- Subscription status.
+- Reconnection and resubscription.
+- Subscription cleanup.
+- Backpressure handling.
+- A visible live-update indicator.
+- Last successful update time.
+- A manual pause/resume control.
+
+Allow monitoring of a selected address or supported account using appropriate subscriptions.
+
+Use logs and notifications only for events actually received or subsequently verified through RPC.
+
+Do not imply that the WebSocket can retrospectively deliver all historical transactions.
+
+Do not subscribe to every discovered account by default.
+
+WebSocket subscriptions must not bypass the HTTP request budget for subsequent HTTP lookups.
+
+When an event arrives, verify relevant details through RPC before presenting it as a fully decoded forensic finding.
+
+## 16. BEAUTIFUL PROFESSIONAL UI
+
+Create an exceptionally polished dark-mode blockchain security investigation interface.
+
+Visual direction:
+- Premium cyber-forensics command center.
+- Near-black charcoal background.
+- Deep navy panels.
+- Restrained electric-cyan accents.
+- Violet highlights for program execution.
+- Green for verified successful execution.
+- Amber for uncertainty or warnings.
+- Red for confirmed failures or evidence-backed critical findings.
+- Subtle borders, soft shadows, carefully controlled glow effects.
+- Crisp typography, generous spacing, consistent alignment.
+- Elegant transitions and responsive layouts.
+
+Avoid excessive neon, clutter, random decorative charts, and generic AI-dashboard styling.
+
+Every visualization must represent actual data.
+
+### Main application layout
+
+LEFT SIDEBAR
+- SOL-MATE logo and identity.
+- New Investigation.
+- Recent Investigations.
+- Transaction Analysis.
+- Address Intelligence.
+- Authority Explorer.
+- Asset Flow.
+- Execution Trace.
+- History Analysis.
+- Live Monitoring.
+- Settings.
+
+MAIN HEADER
+- Network selector.
+- RPC provider status.
+- Connection and rate-limit indicators.
+- Search field.
+- Theme controls if useful.
+- Application information.
+
+LANDING / SEARCH SCREEN
+- Strong SOL-MATE product identity.
+- Large transaction-signature input.
+- "Investigate Transaction" action.
+- Example input format, not a fabricated transaction.
+- Supported analysis capabilities.
+- Current RPC health and network state.
+
+INVESTIGATION WORKSPACE
+- Transaction summary header.
+- Finality and execution status.
+- Slot and timestamp.
+- Fee and compute usage.
+- Primary account and program statistics.
+- Tabs for Overview, Instructions, Accounts, Authorities, Asset Flow, State Changes, History, and Evidence.
+- Searchable tables with sorting, pagination, and column visibility.
+- Expandable evidence panels.
+- Responsive graph workspace.
+
+ACCOUNT DETAIL DRAWER
+- Full public key.
+- Copy and explorer links.
+- Balance and account state.
+- Roles and permissions.
+- Token-account or mint information.
+- Program information.
+- Transaction history.
+- Related accounts.
+- Evidence supporting each classification.
+
+EVIDENCE PANEL
+- RPC method.
+- Relevant field path.
+- Retrieved value.
+- Source slot, when available.
+- Retrieval time.
+- Related instruction or account.
+- Verification status.
+
+SETTINGS
+- HTTP RPC URL.
+- WebSocket URL.
+- Network configuration.
+- Request budget.
+- Cache controls.
+- History limits.
+- Graph limits.
+- Data retention options.
+- Clear cache.
+- Provider diagnostics.
+
+Make all controls functional. Avoid decorative buttons that do nothing.
+
+## 17. INVESTIGATION REPORT AND EXPORT
+
+Generate a comprehensive, professional forensic report for each investigated signature.
+
+The report must include:
+1. Executive summary.
+2. Transaction identification and status.
+3. RPC source and retrieval details.
+4. Execution and instruction breakdown.
+5. Account inventory and role classifications.
+6. Authority and permission analysis.
+7. SOL reconciliation.
+8. Token reconciliation.
+9. State transitions and account-state limitations.
+10. Program interactions and CPI traces.
+11. Relationship graph.
+12. Security observations.
+13. Supporting evidence.
+14. Unresolved questions.
+15. Explicit limitations and confidence assessments.
+
+Implement working exports:
+- JSON containing normalized transaction evidence and analysis.
+- CSV for account inventory, balance changes, and findings.
+- A printable, professionally formatted HTML report suitable for saving as PDF from the browser.
+- A downloadable PDF if supported reliably by the chosen libraries.
+
+Export the actual investigation data. Never generate fictional findings to fill report sections.
+
+Preserve raw numeric precision in machine-readable exports.
+
+Include the signature, network, source endpoint, retrieval time, and analysis version in each report.
+
+## 18. DATA MODELS
+
+Create strongly typed models for:
+
+TransactionRecord
+AccountRecord
+ProgramRecord
+InstructionRecord
+InnerInstructionRecord
+TokenBalanceRecord
+SolBalanceDelta
+TokenBalanceDelta
+AuthorityRecord
+StateTransitionRecord
+AssetFlowEdge
+AccountRelationship
+RiskFinding
+EvidenceReference
+RpcRequestMetric
+InvestigationReport
+
+Evidence references must support:
+- Source method.
+- Field path.
+- Transaction signature.
+- Account address.
+- Instruction index.
+- Slot.
+- Raw value or a precise reference to the raw result.
+- Interpretation.
+- Verification status.
+
+Store provenance alongside derived results. Do not separate findings from their supporting evidence.
+
+## 19. PERFORMANCE AND CORRECTNESS
+
+Implement:
+- Progressive rendering.
+- Virtualized tables for large result sets.
+- Graph node limits.
+- Lazy-loaded account details.
+- Bounded historical pagination.
+- Cancellable investigations.
+- Deduplicated requests.
+- Cache invalidation.
+- Error boundaries.
+- Strict TypeScript settings.
+- Input validation.
+- Accessible keyboard navigation.
+- Responsive design.
+
+Avoid calling getProgramAccounts across the entire network for a single transaction investigation.
+
+Avoid fetching complete history for every address automatically.
+
+Prioritize the transaction, its direct account dependencies, and evidence needed to establish execution and state changes. Make deeper investigation user-triggered and bounded.
+
+Never equate an HTTP 200 response with a successful JSON-RPC result. Validate both the transport status and the JSON-RPC error/result fields.
+
+Do not interpret a missing result as a zero balance or empty history without checking the meaning of the response.
+
+## 20. TESTING AND ACCEPTANCE CRITERIA
+
+Create automated unit and integration tests using mocked RPC responses only inside the test suite. Never expose those fixtures as live application results.
+
+Test:
+- Valid and invalid signatures.
+- Successful transactions.
+- Failed transactions.
+- Legacy transactions.
+- Versioned transactions with loaded addresses.
+- Transactions with inner instructions.
+- Missing metadata.
+- Large integer values.
+- Token balance reconciliation.
+- Account owner versus token owner distinctions.
+- Mint and freeze authority decoding.
+- Unsupported instruction data.
+- RPC errors.
+- HTTP 429 handling.
+- WebSocket disconnections.
+- Cancellation.
+- Export correctness.
+- Malformed account data.
+
+Provide a development-only test harness that clearly labels test fixtures and cannot be mistaken for real blockchain evidence.
+
+For live acceptance testing:
+1. Retrieve a real transaction.
+2. Confirm its signature and slot.
+3. Resolve all available instruction account indices.
+4. Verify the execution status.
+5. Reconcile available SOL and token balance changes.
+6. Open at least one account detail panel.
+7. Open the instruction execution tree.
+8. Build an account relationship graph from actual evidence.
+9. Export the investigation.
+10. Confirm that the app handles rate limits without exceeding the configured request budget.
+
+Do not claim these acceptance tests passed unless they were actually executed successfully.
+
+## 21. IMPLEMENTATION ORDER
+
+Build in the following order, but deliver the complete product:
+
+Phase 1: Application shell, theme, navigation, search, and endpoint configuration.
+
+Phase 2: RPC client, global request limiter, caching, error handling, and transaction retrieval.
+
+Phase 3: Transaction parser, instruction decoder, account registry, and balance reconciliation.
+
+Phase 4: Account details, token authorities, program information, and account-state analysis.
+
+Phase 5: Interactive execution trace, asset-flow visualization, and relationship graph.
+
+Phase 6: Bounded address history, live monitoring, and evidence-backed risk findings.
+
+Phase 7: Investigation reports, exports, diagnostics, and automated tests.
+
+Phase 8: End-to-end verification, responsive polish, and bug fixing.
+
+Do not stop after Phase 1 or return only a roadmap.
+
+## 22. FINAL DELIVERY INSTRUCTIONS
+
+Start building the actual SOL-MATE application now.
+
+Inspect the generated project structure and installed dependencies. Implement the real RPC integration before polishing secondary visual features.
+
+Ensure that the application launches successfully and that its primary transaction investigation flow is functional.
+
+If a provider method, decoder, historical query, or account format is unsupported, implement a graceful and honest limitation rather than pretending it works.
+
+At the end, provide a concise implementation summary covering:
+- Files and major modules created.
+- RPC endpoints configured.
+- Forensic capabilities implemented.
+- Tests actually executed and their results.
+- Any remaining limitations.
+- Exact steps to run and deploy the application.
+
+**Product credit:** SOL-MATE — Built by Sandeep Kumar Sahoo.
+
+The final result must look like a professional blockchain threat-forensics product and operate as a real, evidence-driven Solana investigation tool.

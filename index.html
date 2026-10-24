@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function () {
+        // 1. Suppress third-party browser extension injection errors (e.g., Phantom evmAsk.js, request interceptors)
+        var shouldSuppressError = function (msg, filename) {
+          var m = String(msg || '');
+          var f = String(filename || '');
+          if (f.indexOf('chrome-extension://') === 0 || f.indexOf('moz-extension://') === 0) {
+            return true;
+          }
+          if (
+            m.indexOf('Cannot redefine property: ethereum') !== -1 ||
+            m.indexOf('Cannot set property fetch of #<Window>') !== -1 ||
+            m.indexOf('Cannot set property fetch of') !== -1
+          ) {
+            return true;
+          }
+          return false;
+        };
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            if (
+              shouldSuppressError(
+                event.message || (event.error && event.error.message),
+                event.filename || (event.error && event.error.stack)
+              )
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              return false;
+            }
+          },
+          true
+        );
+
+        window.addEventListener(
+          'unhandledrejection',
+          function (event) {
+            var reason = event.reason;
+            var msg = reason && (reason.message || String(reason));
+            var stack = reason && reason.stack;
+            if (shouldSuppressError(msg, stack)) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+
+        // 2. Make window.fetch and Window.prototype.fetch writable/configurable so extension interceptors don't throw
+        try {
+          var currentFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : undefined;
+          var fetchAccessor = {
+            configurable: true,
+            enumerable: true,
+            get: function () {
+              return currentFetch;
+            },
+            set: function (nextFetch) {
+              if (typeof nextFetch === 'function') {
+                currentFetch = nextFetch;
+              }
+            },
+          };
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            var protoDesc = Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+            if (!protoDesc || protoDesc.configurable) {
+              Object.defineProperty(Window.prototype, 'fetch', fetchAccessor);
+            }
+          }
+          var winDesc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (!winDesc || winDesc.configurable) {
+            Object.defineProperty(window, 'fetch', fetchAccessor);
+          }
+        } catch (_e) {
+          // Ignore if already locked by environment
+        }
+
+        // 3. Guard Object.defineProperty against non-configurable 'ethereum' or 'fetch' redefinitions
+        try {
+          var origDefineProperty = Object.defineProperty;
+          Object.defineProperty = function (target, prop, attributes) {
+            if (
+              (target === window || target === globalThis) &&
+              (prop === 'ethereum' || prop === 'fetch' || prop === 'solana')
+            ) {
+              try {
+                var existing = Object.getOwnPropertyDescriptor(target, prop);
+                if (existing && !existing.configurable) {
+                  return target;
+                }
+                var safeAttrs = Object.assign({}, attributes, { configurable: true });
+                return origDefineProperty.call(Object, target, prop, safeAttrs);
+              } catch (_err) {
+                return target;
+              }
+            }
+            try {
+              return origDefineProperty.call(Object, target, prop, attributes);
+            } catch (err) {
+              if (
+                target === window &&
+                err instanceof TypeError &&
+                String(err.message).indexOf('Cannot redefine property') !== -1
+              ) {
+                return target;
+              }
+              throw err;
+            }
+          };
+        } catch (_e) {
+          // Ignore if Object.defineProperty cannot be wrapped
+        }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOL-MATE</title>
+    <meta name="description" content="SOL-MATE — Advanced Solana Transaction Forensics, Account Intelligence, and Real-Time Blockchain Security Analysis by Sandeep Kumar Sahoo." />
+    <meta property="og:title" content="SOL-MATE" />
+    <meta property="og:description" content="SOL-MATE — Advanced Solana Transaction Forensics, Account Intelligence, and Real-Time Blockchain Security Analysis by Sandeep Kumar Sahoo." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#090b10] text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200 min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

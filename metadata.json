@@ -1,0 +1,6 @@
+{
+  "name": "SOL-MATE",
+  "description": "SOL-MATE — Advanced Solana Transaction Forensics, Account Intelligence, and Real-Time Blockchain Security Analysis by Sandeep Kumar Sahoo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
