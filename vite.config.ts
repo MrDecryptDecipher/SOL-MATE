@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/SOL-MATE/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
