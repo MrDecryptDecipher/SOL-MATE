@@ -53,6 +53,7 @@ import {
 import { KnowledgeGraph } from './KnowledgeGraph';
 import { forensicsEngine } from '../services/forensicsEngine';
 import { deepStorage } from '../services/deepStorage';
+import { SANDEEP_PHOTO_BASE64 } from '../constants/creatorPhotoBase64';
 
 interface InvestigationWorkspaceProps {
   transaction: TransactionRecord;
@@ -602,6 +603,237 @@ ${tx.stateTransitions.map((s) => `- **${s.account}** (${s.fieldOrAsset}): \`${s.
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* UNIVERSAL DETECTION ENGINE RULES, STOP-CODE DIFFS & BURN STATE MACHINE */}
+            {((tx.universalAlerts && tx.universalAlerts.length > 0) ||
+              (tx.universalEnvelope?.stopCodeTransitions && tx.universalEnvelope.stopCodeTransitions.length > 0) ||
+              (tx.universalEnvelope?.burnWorkflowUpdates && tx.universalEnvelope.burnWorkflowUpdates.length > 0)) && (
+              <div className="bg-[#0f1522] border border-cyan-500/35 rounded-2xl p-5 space-y-5 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-cyan-400" />
+                      <h3 className="text-sm sm:text-base font-extrabold text-white">
+                        Universal Detection Rules Fired, Stop-Code Diffs & Burn State Machine
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Adapter: <strong className="text-cyan-300">{tx.universalEnvelope?.protocolFamily || 'SOLANA_SVM'}</strong> •
+                      Independent Severity vs. Confidence • Epistemic Fact Separation
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-mono text-xs font-bold shrink-0">
+                    {tx.universalAlerts?.length || 0} Universal Rule(s) Fired
+                  </span>
+                </div>
+
+                {/* Stop-Code Transitions (SetStopCodes) */}
+                {tx.universalEnvelope?.stopCodeTransitions &&
+                  tx.universalEnvelope.stopCodeTransitions.length > 0 && (
+                    <div className="space-y-2.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 block">
+                        Decoded SetStopCodes Compliance Bitmask Transition (Field-Level Diff)
+                      </span>
+                      {tx.universalEnvelope.stopCodeTransitions.map((sc) => (
+                        <div
+                          key={sc.id}
+                          className="p-4 rounded-xl bg-[#090d14] border border-amber-500/35 space-y-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-bold text-white">
+                              Token: {sc.tokenSymbol} ({sc.mintAddress})
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                                sc.isAuthorizedAuthority
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              }`}
+                            >
+                              {sc.isAuthorizedAuthority
+                                ? 'AUTHORIZED FACT COMPLIANCE SIGNER'
+                                : 'UNAUTHORIZED SIGNER'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+                            {(
+                              [
+                                'stop_transfer_to',
+                                'stop_transfer_from',
+                                'stop_redemption_from',
+                                'stop_subscription_to',
+                              ] as const
+                            ).map((flag) => {
+                              const beforeVal = sc.beforeFlags[flag];
+                              const afterVal = sc.afterFlags[flag];
+                              const changed = beforeVal !== afterVal;
+                              return (
+                                <div
+                                  key={flag}
+                                  className={`p-2.5 rounded-lg border ${
+                                    changed
+                                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                                      : 'bg-[#0d131f] border-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  <div className="text-[10px] break-all font-bold">{flag}</div>
+                                  <div className="mt-1 text-xs font-extrabold">
+                                    {String(beforeVal)} →{' '}
+                                    <span className={afterVal ? 'text-rose-400' : 'text-emerald-400'}>
+                                      {String(afterVal)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                {/* Burn Workflow State Machine Updates */}
+                {tx.universalEnvelope?.burnWorkflowUpdates &&
+                  tx.universalEnvelope.burnWorkflowUpdates.length > 0 && (
+                    <div className="space-y-2.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300 block">
+                        Stateful Burn Workflow State Machine (prepare_burn → BurnApprove → BurnChecked)
+                      </span>
+                      {tx.universalEnvelope.burnWorkflowUpdates.map((bw) => (
+                        <div
+                          key={bw.workflowId}
+                          className={`p-4 rounded-xl border space-y-3 ${
+                            bw.anomaliesDetected.length > 0
+                              ? 'bg-rose-950/20 border-rose-500/40'
+                              : 'bg-emerald-950/15 border-emerald-500/35'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-bold text-white">
+                              Workflow: {bw.workflowId} ({bw.tokenSymbol})
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded font-mono text-[10px] font-extrabold ${
+                                bw.anomaliesDetected.length > 0
+                                  ? 'bg-rose-500 text-slate-950'
+                                  : 'bg-emerald-500 text-slate-950'
+                              }`}
+                            >
+                              STAGE: {bw.stage}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                            <div className="p-2.5 rounded-lg bg-[#090d14] border border-slate-800">
+                              <span className="text-[10px] text-slate-400 block">1. Requested (prepare_burn)</span>
+                              <span className="font-mono font-bold text-white">
+                                {bw.requestedAmountUi.toFixed(2)} {bw.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[#090d14] border border-slate-800">
+                              <span className="text-[10px] text-slate-400 block">2. Approved (BurnApprove)</span>
+                              <span className="font-mono font-bold text-amber-300">
+                                {(bw.approvedAmountUi ?? 0).toFixed(2)} {bw.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[#090d14] border border-slate-800">
+                              <span className="text-[10px] text-slate-400 block">3. Burned Amount</span>
+                              <span className="font-mono font-bold text-cyan-300">
+                                {(bw.burnedAmountUi ?? 0).toFixed(2)} {bw.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[#090d14] border border-slate-800">
+                              <span className="text-[10px] text-slate-400 block">Supply Reduction Verified</span>
+                              <span
+                                className={`font-mono font-extrabold ${
+                                  bw.verifiedSupplyReduced ? 'text-emerald-400' : 'text-rose-400'
+                                }`}
+                              >
+                                {bw.verifiedSupplyReduced ? 'YES — REDUCED' : 'NO — SUPPLY UNCHANGED'}
+                              </span>
+                            </div>
+                          </div>
+                          {bw.anomaliesDetected.length > 0 && (
+                            <div className="space-y-1 pt-1">
+                              {bw.anomaliesDetected.map((anom, i) => (
+                                <div
+                                  key={i}
+                                  className="text-xs text-rose-300 font-semibold flex items-center gap-1.5"
+                                >
+                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                  <span>{anom}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                {/* Fired Universal Alerts & 10-Part Analyst Explanation */}
+                {tx.universalAlerts && tx.universalAlerts.length > 0 && (
+                  <div className="space-y-3">
+                    {tx.universalAlerts.map((uAlert) => (
+                      <div
+                        key={uAlert.alertId}
+                        className="p-4 rounded-xl bg-[#090d14] border border-slate-800 space-y-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-[10px] font-extrabold">
+                              {uAlert.ruleId} (v{uAlert.ruleVersion})
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase ${
+                                uAlert.severity === 'critical'
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                  : uAlert.severity === 'high'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              }`}
+                            >
+                              Severity: {uAlert.severity}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/40 font-mono text-[10px] font-bold uppercase">
+                              Confidence: {uAlert.confidence}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono text-[10px]">
+                              {uAlert.epistemicStatus}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[11px] text-slate-400">{uAlert.category}</span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-extrabold text-white">{uAlert.title}</h4>
+                          <p className="text-xs text-slate-300 mt-1">{uAlert.summary}</p>
+                        </div>
+
+                        {/* 10-Part Analyst Explanation Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-slate-800/80 text-[11px]">
+                          <div className="p-2.5 rounded-lg bg-[#0d131f] border border-slate-800/80">
+                            <strong className="text-cyan-300 block">1. Observed & 2. What Happened:</strong>
+                            <span className="text-slate-300">{uAlert.explanation.whatHappened}</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-[#0d131f] border border-slate-800/80">
+                            <strong className="text-emerald-300 block">3. Technical Interpretation & State Delta:</strong>
+                            <span className="text-slate-300">{uAlert.explanation.technicalInterpretation}</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-[#0d131f] border border-slate-800/80">
+                            <strong className="text-amber-300 block">4. Why Rule Fired & 5. Security Implications:</strong>
+                            <span className="text-slate-300">{uAlert.explanation.whyRuleFired}</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-[#0d131f] border border-slate-800/80">
+                            <strong className="text-violet-300 block">10. Recommended Response & Checklist:</strong>
+                            <span className="text-slate-300">{uAlert.explanation.recommendedResponse.join(' • ')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2193,14 +2425,22 @@ ${tx.stateTransitions.map((s) => `- **${s.account}** (${s.fieldOrAsset}): \`${s.
            ===================================================================== */}
         {activeTab === 'report' && (
           <div className="bg-white text-slate-900 p-8 sm:p-12 rounded-2xl shadow-2xl space-y-6 print:shadow-none print:p-0">
-            <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  SOL-MATE FORENSIC INVESTIGATION REPORT
-                </h1>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Automated Solana On-Chain Forensic & Token Onboarding Intelligence Report • Sandeep Kumar Sahoo
-                </p>
+            <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <img
+                  src={SANDEEP_PHOTO_BASE64}
+                  alt="Sandeep Kumar Sahoo"
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-slate-900 shadow-sm shrink-0"
+                />
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                    SOL-MATE FORENSIC INVESTIGATION REPORT
+                  </h1>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Automated Solana On-Chain Forensic & Token Onboarding Intelligence Report • Built by{' '}
+                    <strong className="text-slate-900">Sandeep Kumar Sahoo</strong>
+                  </p>
+                </div>
               </div>
               <div className="text-right text-xs text-slate-600">
                 <div>Date: {new Date(tx.retrievedAt).toLocaleDateString()}</div>

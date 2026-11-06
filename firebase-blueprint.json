@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated SOL-MATE analyst public profile and workspace preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "User full display name" },
+        "photoURL": { "type": "string", "description": "Google account avatar URL" },
+        "preferredMode": { "type": "string", "enum": ["ease", "pro"], "description": "Active workspace mode" },
+        "connectedAtIST": { "type": "string", "description": "Initial connection timestamp in IST (Asia/Kolkata)" },
+        "lastActiveIST": { "type": "string", "description": "Latest activity timestamp in IST (Asia/Kolkata)" },
+        "updatedAt": { "type": "number", "description": "Epoch ms timestamp" }
+      },
+      "required": ["uid", "name", "preferredMode", "connectedAtIST", "lastActiveIST"]
+    },
+    "UserPrivateDetails": {
+      "title": "UserPrivateDetails",
+      "description": "Strictly private user connection audit record containing email and client IP details.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "Connected Google user name" },
+        "email": { "type": "string", "format": "email", "description": "Connected Google email address" },
+        "ipAddress": { "type": "string", "description": "Client IP address captured at connection" },
+        "ipDetails": { "type": "string", "description": "ISP / Geo / Network metadata for client IP" },
+        "userAgent": { "type": "string", "description": "Browser user agent" },
+        "connectedAtIST": { "type": "string", "description": "Connection timestamp in IST" },
+        "lastLoginIST": { "type": "string", "description": "Latest login timestamp in IST" }
+      },
+      "required": ["uid", "name", "email", "ipAddress", "connectedAtIST", "lastLoginIST"]
+    },
+    "UserActivity": {
+      "title": "UserActivity",
+      "description": "Audit log of every user action performed inside SOL-MATE with IST timestamps.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner user UID" },
+        "userName": { "type": "string", "description": "User display name" },
+        "userEmail": { "type": "string", "description": "User email" },
+        "ipAddress": { "type": "string", "description": "User IP address" },
+        "actionType": { "type": "string", "description": "Category of product action" },
+        "actionTitle": { "type": "string", "description": "Human readable summary of action" },
+        "targetId": { "type": "string", "description": "Transaction signature or address interacted with" },
+        "mode": { "type": "string", "enum": ["ease", "pro"], "description": "Workspace mode when action occurred" },
+        "details": { "type": "string", "description": "Serialized forensic context" },
+        "timestampIST": { "type": "string", "description": "Formatted IST timestamp (Asia/Kolkata)" },
+        "timestampMs": { "type": "number", "description": "Epoch milliseconds" }
+      },
+      "required": ["uid", "userName", "actionType", "actionTitle", "mode", "timestampIST", "timestampMs"]
+    },
+    "KnowledgeGraphNode": {
+      "title": "KnowledgeGraphNode",
+      "description": "Persistent Solana Knowledge Graph entity node trained from user Solana interactions with IST timestamps.",
+      "type": "object",
+      "properties": {
+        "nodeId": { "type": "string", "description": "Address or entity identifier" },
+        "address": { "type": "string", "description": "Blockchain address" },
+        "label": { "type": "string", "description": "Resolved entity label" },
+        "category": { "type": "string", "description": "Forensic address category" },
+        "isWhitelisted": { "type": "boolean", "description": "Whether whitelisted in institutional registry" },
+        "institution": { "type": "string", "description": "Institution name if applicable" },
+        "protocol": { "type": "string", "description": "Protocol name" },
+        "ecosystem": { "type": "string", "description": "Ecosystem tag (JLTXX, MONY, FACT_CORE, SOLANA)" },
+        "firstTrainedIST": { "type": "string", "description": "First trained timestamp in IST" },
+        "lastTrainedIST": { "type": "string", "description": "Most recent training timestamp in IST" },
+        "observationCount": { "type": "number", "description": "Number of times observed/trained" },
+        "lastSignature": { "type": "string", "description": "Most recent associated transaction signature" },
+        "trainedByUid": { "type": "string", "description": "UID of analyst who trained this node" },
+        "trainedByName": { "type": "string", "description": "Name of analyst who trained this node" }
+      },
+      "required": ["nodeId", "address", "label", "category", "isWhitelisted", "firstTrainedIST", "lastTrainedIST", "observationCount", "trainedByUid"]
+    },
+    "KnowledgeGraphEdge": {
+      "title": "KnowledgeGraphEdge",
+      "description": "Persistent Solana Knowledge Graph directed relationship or fund flow edge with IST timestamps.",
+      "type": "object",
+      "properties": {
+        "edgeId": { "type": "string", "description": "Deterministic edge identifier" },
+        "source": { "type": "string", "description": "Source address" },
+        "sourceLabel": { "type": "string", "description": "Source entity label" },
+        "target": { "type": "string", "description": "Target address" },
+        "targetLabel": { "type": "string", "description": "Target entity label" },
+        "relationshipType": { "type": "string", "description": "Edge relationship type" },
+        "asset": { "type": "string", "description": "Token or native asset symbol" },
+        "amount": { "type": "string", "description": "Formatted amount transferred/minted/burned" },
+        "txSignature": { "type": "string", "description": "Originating transaction signature" },
+        "correlationMode": { "type": "string", "enum": ["CORRELATED_LIFECYCLE", "INDEPENDENT_ALERT"], "description": "Correlation classification" },
+        "trainedAtIST": { "type": "string", "description": "IST timestamp when trained" },
+        "trainedByUid": { "type": "string", "description": "UID of analyst" }
+      },
+      "required": ["edgeId", "source", "target", "relationshipType", "txSignature", "correlationMode", "trainedAtIST", "trainedByUid"]
+    },
+    "KnowledgeGraphTransaction": {
+      "title": "KnowledgeGraphTransaction",
+      "description": "Persistent Solana Knowledge Graph trained transaction and alert classification record with IST timestamps.",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string", "description": "Sanitized transaction ID" },
+        "signature": { "type": "string", "description": "Full transaction signature" },
+        "slot": { "type": "number", "description": "Solana slot or block height" },
+        "alertCategory": { "type": "string", "description": "Classified alert type (MINT, BURN, STOPCODES, ONBOARDING, ADMIN, SCAM_ANOMALY, TRANSFER)" },
+        "alertTitle": { "type": "string", "description": "Human readable alert headline" },
+        "alertSeverity": { "type": "string", "description": "Severity level" },
+        "correlationType": { "type": "string", "enum": ["CORRELATED_LIFECYCLE", "INDEPENDENT_ALERT"], "description": "Whether correlated or independent" },
+        "isClientOnboarded": { "type": "boolean", "description": "Whether transaction onboarded a client for a token" },
+        "tokenInvolved": { "type": "string", "description": "Resolved token name and symbol" },
+        "valueInvolved": { "type": "string", "description": "Summary of value involved" },
+        "feePayer": { "type": "string", "description": "Fee payer address" },
+        "signersSummary": { "type": "string", "description": "Comma-separated signers" },
+        "whitelistedCount": { "type": "number", "description": "Number of whitelisted addresses" },
+        "nonWhitelistedCount": { "type": "number", "description": "Number of non-whitelisted addresses" },
+        "trainedAtIST": { "type": "string", "description": "IST timestamp when trained to Knowledge Graph" },
+        "blockTimeIST": { "type": "string", "description": "On-chain block time converted to IST" },
+        "trainedByUid": { "type": "string", "description": "UID of analyst" },
+        "trainedByName": { "type": "string", "description": "Name of analyst" }
+      },
+      "required": ["txId", "signature", "slot", "alertCategory", "alertTitle", "correlationType", "isClientOnboarded", "tokenInvolved", "valueInvolved", "feePayer", "trainedAtIST", "trainedByUid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Authenticated user profile document."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateDetails" },
+      "description": "Strictly private user email and IP connection audit record."
+    },
+    "/user_activities/{activityId}": {
+      "schema": { "$ref": "#/entities/UserActivity" },
+      "description": "User product interaction and forensic audit log with IST timestamps."
+    },
+    "/kg_nodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/KnowledgeGraphNode" },
+      "description": "Persistent Solana Knowledge Graph nodes."
+    },
+    "/kg_edges/{edgeId}": {
+      "schema": { "$ref": "#/entities/KnowledgeGraphEdge" },
+      "description": "Persistent Solana Knowledge Graph edges."
+    },
+    "/kg_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/KnowledgeGraphTransaction" },
+      "description": "Persistent Solana Knowledge Graph trained transactions."
+    }
+  }
+}

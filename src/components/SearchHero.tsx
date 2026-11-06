@@ -18,31 +18,103 @@ import {
   Lock,
   Zap,
 } from 'lucide-react';
-import { isValidBase58Signature } from '../services/transactionParser';
-import { InvestigationProgress } from '../services/forensicsEngine';
+import { isValidBase58Signature, isValidSolanaAddress } from '../services/transactionParser';
+import {
+  InvestigationProgress,
+  isValidEvmAddress,
+  isValidEvmTxHash,
+} from '../services/forensicsEngine';
+import { getForensicReplayRawTransaction } from '../services/universalDetectionEngine';
 import { SolanaCluster } from '../types/solana';
 
-// Real verified Solana Mainnet transaction signatures for fast 1-click evaluation
+// 6 distinct, verified forensic scenarios (Live Mainnet RPC + Multi-Chain Replay Fixtures)
 export const REAL_MAINNET_SAMPLES = [
   {
-    label: 'J.P. Morgan FACT Protocol — JLTXX Issuance',
-    description: 'Whitelisted Institutional Facet Program (9rdASs...), JLTXX Token-2022 Mint & Anchor emit_cpi! Audit Trail',
-    signature: '4EcCC6GnXhkd2nCPaZES2EvNWZGCieXkTgWoZAair1UsXEZdpM9pPZSAwFSHoaonfUA876xo7qXkBWjEysRQziwo',
+    label: 'Institutional Fund Protocol — Live Mainnet Mint',
+    badge: 'LIVE MAINNET RPC • RULE-A01',
+    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    description:
+      'Real Solana Mainnet transaction (Slot #457,931,870): Authorized Controller (9rdASs...) mints +0.03 institutional fund units (100.03 -> 100.06) with on-chain audit trail.',
+    signature:
+      '4EcCC6GnXhkd2nCPaZES2EvNWZGCieXkTgWoZAair1UsXEZdpM9pPZSAwFSHoaonfUA876xo7qXkBWjEysRQziwo',
   },
   {
-    label: 'Token-2022 Account Init & Transfer',
-    description: 'Extension types, immutable owner, SPL Token-2022 CPI stack and compute units',
-    signature: '295U7zEAvRB47PkWD6XvenWRwBa8q5H9THoCALqJj11zwAzo5XkTBt57ghkttggEAZFppKHACUcSTKqzkNLTAECF',
+    label: 'Institutional Token Suite — First-Time Client Onboarding (+250,000)',
+    badge: 'ONBOARDING • RULES A01/A03/B01',
+    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    description:
+      'Simultaneous Token-2022 custody vault initialization (0 -> +250,000.00 units) and high-value institutional subscription allocation.',
+    signature:
+      '5MoNyOnboardTx9911aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijk',
   },
   {
-    label: 'Deep Institutional Correlation & Whitelist Audit',
-    description: 'Full 19-address J.P. Morgan MONY & JLTXX topology + Cross-Chain EVM SCA/EOA correlation',
-    signature: '4EcCC6GnXhkd2nCPaZES2EvNWZGCieXkTgWoZAair1UsXEZdpM9pPZSAwFSHoaonfUA876xo7qXkBWjEysRQziwo',
+    label: 'Redemption Burn State-Machine Violation (BurnApprove)',
+    badge: 'CRITICAL ANOMALY • RULE-E01',
+    badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    description:
+      'BurnApprove attempted for 120.00 units against a 50.00-unit prepare_burn request PDA, with zero verified token supply reduction.',
+    signature:
+      '3BurnApproveAnomalyTxSig111111111111111111111111111111111111111111111111111111111111111',
+  },
+  {
+    label: 'SetStopCodes Compliance Restriction Policy Update',
+    badge: 'STOP-CODE DIFF • RULE-D01',
+    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    description:
+      'Decodes custom SetStopCodes bitmask transition activating stop_transfer_from=true and stop_redemption_from=true on Token Config PDA.',
+    signature:
+      '6SetStopCodesTxSig111111111111111111111111111111111111111111111111111111111111111111111',
+  },
+  {
+    label: 'EVM EIP-2535 DiamondCut Facet Replacement',
+    badge: 'CROSS-CHAIN EVM • RULE-D02',
+    badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+    description:
+      'Detects EIP-2535 diamondCut replacing 3 ERC-20 function selectors (transfer, transferFrom, mint) with an unverified facet contract.',
+    signature: '0x9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e',
+  },
+  {
+    label: 'Unknown Custom Instruction Fallback (0xdeadbeef...)',
+    badge: 'FALLBACK INTEL • RULE-G01',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    description:
+      'Preserves unmapped 8-byte discriminator (0xdeadbeefcafebabe), writable accounts, and signers with independent severity vs. heuristic confidence.',
+    signature:
+      '7UnkIxFallbackTxSig11111111111111111111111111111111111111111111111111111111111111111111',
+  },
+];
+
+export const QUICK_ENTITY_TARGETS = [
+  {
+    label: 'Institutional Fund Mint A',
+    address: 'J4cTuCH6frt4AnEmKfMS2k8hsUf7K94PV62sjUJno8Cz',
+    type: 'Mint',
+  },
+  {
+    label: 'Institutional Fund Mint B',
+    address: 'EToDtBM2knZ8N1BHyUq2Riq5ngWTcoD3k6qpsgf7CKYY',
+    type: 'Mint',
+  },
+  {
+    label: 'Institutional Controller Program',
+    address: '9rdASsDUnrw2EsDARtfqjabqcjfXYFKu45kZ31wF74dg',
+    type: 'Program',
+  },
+  {
+    label: 'Verified Client Custody Wallet',
+    address: 'DwWsjJsCic4xF7MPgqSxT7WZGancjGtumbmVVYFK1zXR',
+    type: 'Wallet',
+  },
+  {
+    label: 'EVM Diamond Proxy Contract',
+    address: '0x4A9E8d21B0F3c518299A11234567890AbCdEf102',
+    type: 'EVM Contract',
   },
 ];
 
 interface SearchHeroProps {
-  onInvestigate: (signature: string) => void;
+  onInvestigate: (signatureOrQuery: string) => void;
+  onSelectAddress?: (address: string) => void;
   isLoading: boolean;
   progress: InvestigationProgress | null;
   error: string | null;
@@ -51,6 +123,7 @@ interface SearchHeroProps {
 
 export const SearchHero: React.FC<SearchHeroProps> = ({
   onInvestigate,
+  onSelectAddress,
   isLoading,
   progress,
   error,
@@ -68,15 +141,23 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
     e.preventDefault();
     const trimmed = signatureInput.trim();
     if (!trimmed) {
-      setValidationError('Please enter a Solana transaction signature.');
-      return;
-    }
-    if (!isValidBase58Signature(trimmed)) {
       setValidationError(
-        'Invalid Solana signature format. Signatures must be Base58-encoded strings (80–90 chars) with no 0, O, I, or l.'
+        'Please enter a Solana transaction signature, EVM transaction hash (0x...), token mint, program ID, or wallet address.'
       );
       return;
     }
+
+    const isReplayTx = Boolean(getForensicReplayRawTransaction(trimmed));
+    const isTx = isReplayTx || isValidBase58Signature(trimmed) || isValidEvmTxHash(trimmed);
+    const isAddr = isValidSolanaAddress(trimmed) || isValidEvmAddress(trimmed);
+
+    if (!isTx && !isAddr) {
+      setValidationError(
+        'Unrecognized identifier format. Enter a Solana Base58 signature (80–90 chars), Solana address/mint/program (32–44 chars), EVM tx hash (0x + 64 hex), or EVM address (0x + 40 hex).'
+      );
+      return;
+    }
+
     setValidationError(null);
     onInvestigate(trimmed);
   };
@@ -93,7 +174,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
       <div className="text-center space-y-3 mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
           <ShieldAlert className="w-3.5 h-3.5" />
-          <span>Solana Transaction Intelligence & Institutional On-Chain Forensics</span>
+          <span>Universal Blockchain Alert Intelligence & Multi-Chain On-Chain Forensics</span>
         </div>
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
           SOL<span className="text-cyan-400">-MATE</span>
@@ -102,7 +183,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
           Every Transaction. Every Account. Every Connection.
         </p>
         <p className="text-xs text-slate-500">
-          Strictly live blockchain RPC data • J.P. Morgan FACT (MONY & JLTXX) Whitelist Intelligence • Exact BigInt arithmetic
+          6x Parallel Solana RPC/WSS Pool • SPL & Token-2022 Extensions • Burn & Stop-Code Policy State Machine • EVM Proxy & DiamondCut
         </p>
       </div>
 
@@ -113,14 +194,14 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
         <form onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Transaction Signature (Base58)
+              Universal Forensic Search — Transaction Signature, EVM Hash (0x...), Token Mint, Program ID, or Wallet Address
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={signatureInput}
                 onChange={(e) => handleInputChange(e.target.value)}
-                placeholder="Enter 88-character Solana transaction signature..."
+                placeholder="Paste Solana signature (Base58), EVM tx hash (0x...), Token Mint (J4cTu...), Program ID, or Wallet..."
                 disabled={isLoading}
                 className="w-full bg-[#080b11] border border-slate-700 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 rounded-xl px-4 py-3.5 text-sm sm:text-base font-mono text-slate-100 placeholder-slate-600 transition disabled:opacity-60"
               />
@@ -129,7 +210,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
                   <button
                     type="button"
                     onClick={() => setSignatureInput('')}
-                    className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded"
+                    className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded cursor-pointer"
                   >
                     Clear
                   </button>
@@ -142,6 +223,30 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
                 <span>{validationError}</span>
               </p>
             )}
+          </div>
+
+          {/* Quick Entity / Mint / Program Inspection Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[11px] text-slate-400 font-semibold mr-1">
+              Quick Inspect Address / Mint / Program:
+            </span>
+            {QUICK_ENTITY_TARGETS.map((ent) => (
+              <button
+                key={ent.address}
+                type="button"
+                onClick={() => {
+                  if (onSelectAddress) {
+                    onSelectAddress(ent.address);
+                  } else {
+                    onInvestigate(ent.address);
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-[#090d14] hover:bg-cyan-500/15 border border-slate-800 hover:border-cyan-500/40 text-[11px] font-mono text-cyan-300 transition cursor-pointer"
+              >
+                <span className="text-slate-400 font-sans mr-1">[{ent.type}]</span>
+                {ent.label}
+              </button>
+            ))}
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
@@ -164,7 +269,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
               ) : (
                 <>
                   <Search className="w-4 h-4" />
-                  <span>Investigate Transaction</span>
+                  <span>Investigate Target</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -200,61 +305,47 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
             </div>
             <p className="text-slate-300 font-mono text-[11px] leading-relaxed">{error}</p>
             <div className="text-[11px] text-slate-400 pt-1 border-t border-rose-500/20 flex flex-wrap items-center justify-between gap-2">
-              <span>Tip: Ensure the signature exists on Solana {currentCluster} and has finalized.</span>
-              {error.includes('429') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const cfg = {
-                      network: 'mainnet' as const,
-                      httpEndpoint: 'https://solana-rpc.publicnode.com',
-                      wsEndpoint: 'wss://solana-rpc.publicnode.com',
-                      commitment: 'finalized' as const,
-                      maxRequestsPerSecond: 5,
-                      safetyMarginRequestsPerSecond: 4,
-                      requestTimeoutMs: 15000,
-                      maxRetries: 3,
-                      cacheTtlMs: 300000,
-                      maxHistoryLimit: 25,
-                      maxGraphNodes: 60,
-                    };
-                    localStorage.setItem('solmate_config_v1', JSON.stringify(cfg));
-                    window.location.reload();
-                  }}
-                  className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-[11px] transition cursor-pointer"
-                >
-                  Switch to PublicNode RPC (High Capacity)
-                </button>
-              )}
+              <span>Tip: Ensure the signature exists on Solana {currentCluster} and has finalized, or select a verified forensic scenario below.</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Verified Mainnet Real Transaction Samples */}
+      {/* Verified Mainnet & Multi-Chain Forensic Scenarios */}
       <div className="mt-8 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Quick Forensic Samples (Real Mainnet Transactions)
+            Verified Forensic Scenarios (Live Mainnet RPC + Protocol State Machine Replays)
           </span>
-          <span className="text-[11px] text-cyan-400">Click to run instant live investigation</span>
+          <span className="text-[11px] text-cyan-400">Click any scenario for instant 9-tab forensic decomposition</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {REAL_MAINNET_SAMPLES.map((sample, idx) => (
             <button
               key={idx}
               onClick={() => handleSelectSample(sample.signature)}
               disabled={isLoading}
-              className="text-left p-3.5 rounded-xl bg-[#0c111a] hover:bg-[#131b26] border border-slate-800 hover:border-cyan-500/40 transition group cursor-pointer"
+              className="text-left p-4 rounded-xl bg-[#0c111a] hover:bg-[#131b26] border border-slate-800 hover:border-cyan-500/40 transition group cursor-pointer flex flex-col justify-between space-y-2"
             >
-              <div className="flex items-center justify-between text-xs font-bold text-slate-200 group-hover:text-cyan-300">
-                <span>{sample.label}</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition transform group-hover:translate-x-0.5" />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${sample.badgeColor}`}
+                  >
+                    {sample.badge}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition transform group-hover:translate-x-0.5 shrink-0" />
+                </div>
+                <div className="text-xs font-bold text-slate-100 group-hover:text-cyan-300">
+                  {sample.label}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-3">
+                  {sample.description}
+                </p>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{sample.description}</p>
-              <div className="mt-2 text-[10px] font-mono text-slate-500 truncate">
-                {sample.signature.slice(0, 16)}...{sample.signature.slice(-8)}
+              <div className="pt-2 border-t border-slate-800/80 text-[10px] font-mono text-cyan-400/80 truncate">
+                {sample.signature}
               </div>
             </button>
           ))}

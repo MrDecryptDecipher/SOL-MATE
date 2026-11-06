@@ -5,6 +5,7 @@
  */
 
 import { Commitment, SolanaCluster } from './solana';
+import { UniversalAlertRecord, UniversalTransactionEnvelope } from './universalIntel';
 
 export type AddressCategory =
   | 'system-program'
@@ -65,11 +66,16 @@ export interface AccountRecord {
   institutionalInfo?: {
     shortLabel: string;
     roleTitle: string;
-    ecosystem: 'FACT_CORE' | 'MONY' | 'JLTXX';
+    ecosystem: 'FACT_CORE' | 'MONY' | 'JLTXX' | 'KINEXYS_SCA_EOA' | 'SOLANA_CORE';
     institution: string;
     protocol: string;
     description: string;
-    securityStatus: 'WHITELISTED_INSTITUTIONAL';
+    whatItIs?: string;
+    whyWhitelisted?: string;
+    howItWorks?: string;
+    pairedAddress?: string;
+    pairedRole?: string;
+    securityStatus: 'WHITELISTED_INSTITUTIONAL' | 'WHITELISTED_CORE_PROTOCOL';
   };
   category: AddressCategory;
   categoryConfidence: 'high' | 'medium' | 'low';
@@ -404,7 +410,7 @@ export interface AccountCorrelationRow {
   label: string;
   category: AddressCategory;
   isWhitelistedInstitutional: boolean;
-  institutionalEcosystem?: 'FACT_CORE' | 'MONY' | 'JLTXX';
+  institutionalEcosystem?: 'FACT_CORE' | 'MONY' | 'JLTXX' | 'KINEXYS_SCA_EOA' | 'SOLANA_CORE';
   institutionalRoleTitle?: string;
   isSigner: boolean;
   isWritable: boolean;
@@ -486,6 +492,8 @@ export interface TransactionRecord {
   heuristicRiskScore: number; // 0 (safest) - 100 (critical risk)
   deepCorrelations: DeepForensicsCorrelation;
   evidenceCatalog: EvidenceReference[];
+  universalEnvelope?: UniversalTransactionEnvelope;
+  universalAlerts?: UniversalAlertRecord[];
   rawTransactionJson?: string;
   retrievedAt: number;
   rpcEndpointUsed: string;

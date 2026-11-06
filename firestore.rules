@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email == "sandeep.savethem2@gmail.com" &&
+        request.auth.token.email_verified == true;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'preferredMode', 'connectedAtIST', 'lastActiveIST']) &&
+        data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.preferredMode in ['ease', 'pro'] &&
+        data.connectedAtIST is string && data.connectedAtIST.size() > 0 && data.connectedAtIST.size() <= 100 &&
+        data.lastActiveIST is string && data.lastActiveIST.size() > 0 && data.lastActiveIST.size() <= 100;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'ipAddress', 'connectedAtIST', 'lastLoginIST']) &&
+        data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.email is string && data.email.size() > 0 && data.email.size() <= 320 &&
+        data.ipAddress is string && data.ipAddress.size() > 0 && data.ipAddress.size() <= 120 &&
+        data.connectedAtIST is string && data.connectedAtIST.size() > 0 && data.connectedAtIST.size() <= 100 &&
+        data.lastLoginIST is string && data.lastLoginIST.size() > 0 && data.lastLoginIST.size() <= 100;
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['uid', 'userName', 'actionType', 'actionTitle', 'mode', 'timestampIST', 'timestampMs']) &&
+        data.uid is string && data.uid == request.auth.uid &&
+        data.userName is string && data.userName.size() <= 200 &&
+        data.actionType is string && data.actionType.size() <= 120 &&
+        data.actionTitle is string && data.actionTitle.size() <= 500 &&
+        data.mode in ['ease', 'pro'] &&
+        data.timestampIST is string && data.timestampIST.size() <= 100 &&
+        data.timestampMs is number;
+    }
+
+    function isValidKgNode(data) {
+      return data.keys().hasAll(['nodeId', 'address', 'label', 'category', 'isWhitelisted', 'firstTrainedIST', 'lastTrainedIST', 'observationCount', 'trainedByUid']) &&
+        data.nodeId is string && data.nodeId.size() <= 160 &&
+        data.address is string && data.address.size() <= 160 &&
+        data.label is string && data.label.size() <= 400 &&
+        data.category is string && data.category.size() <= 100 &&
+        data.isWhitelisted is bool &&
+        data.firstTrainedIST is string && data.firstTrainedIST.size() <= 100 &&
+        data.lastTrainedIST is string && data.lastTrainedIST.size() <= 100 &&
+        data.observationCount is number && data.observationCount >= 1 &&
+        data.trainedByUid is string && data.trainedByUid.size() <= 128;
+    }
+
+    function isValidKgEdge(data) {
+      return data.keys().hasAll(['edgeId', 'source', 'target', 'relationshipType', 'txSignature', 'correlationMode', 'trainedAtIST', 'trainedByUid']) &&
+        data.edgeId is string && data.edgeId.size() <= 240 &&
+        data.source is string && data.source.size() <= 160 &&
+        data.target is string && data.target.size() <= 160 &&
+        data.relationshipType is string && data.relationshipType.size() <= 120 &&
+        data.txSignature is string && data.txSignature.size() <= 160 &&
+        data.correlationMode in ['CORRELATED_LIFECYCLE', 'INDEPENDENT_ALERT'] &&
+        data.trainedAtIST is string && data.trainedAtIST.size() <= 100 &&
+        data.trainedByUid is string && data.trainedByUid.size() <= 128;
+    }
+
+    function isValidKgTx(data) {
+      return data.keys().hasAll(['txId', 'signature', 'slot', 'alertCategory', 'alertTitle', 'correlationType', 'isClientOnboarded', 'tokenInvolved', 'valueInvolved', 'feePayer', 'trainedAtIST', 'trainedByUid']) &&
+        data.txId is string && data.txId.size() <= 160 &&
+        data.signature is string && data.signature.size() <= 160 &&
+        data.slot is number &&
+        data.alertCategory is string && data.alertCategory.size() <= 120 &&
+        data.alertTitle is string && data.alertTitle.size() <= 500 &&
+        data.correlationType in ['CORRELATED_LIFECYCLE', 'INDEPENDENT_ALERT'] &&
+        data.isClientOnboarded is bool &&
+        data.tokenInvolved is string && data.tokenInvolved.size() <= 300 &&
+        data.valueInvolved is string && data.valueInvolved.size() <= 300 &&
+        data.feePayer is string && data.feePayer.size() <= 160 &&
+        data.trainedAtIST is string && data.trainedAtIST.size() <= 100 &&
+        data.trainedByUid is string && data.trainedByUid.size() <= 128;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == userId;
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isAdmin();
+
+      match /private/{docId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidUserPrivate(request.resource.data) && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidUserPrivate(request.resource.data) && request.resource.data.uid == resource.data.uid;
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /user_activities/{activityId} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidActivity(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /kg_nodes/{nodeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidKgNode(request.resource.data);
+      allow update: if isAuthenticated() && isValidKgNode(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /kg_edges/{edgeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidKgEdge(request.resource.data);
+      allow update: if isAuthenticated() && isValidKgEdge(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /kg_transactions/{txId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidKgTx(request.resource.data);
+      allow update: if isAuthenticated() && isValidKgTx(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

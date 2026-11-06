@@ -33,6 +33,7 @@ import {
   getInstitutionalMetadata,
   resolveTokenIdentity,
 } from './protocolIntelligence';
+import { SolanaProtocolAdapter, evaluateUniversalTransaction } from './universalDetectionEngine';
 
 export const KNOWN_PROGRAMS: Record<string, { name: string; category: AddressCategory }> = {
   '11111111111111111111111111111111': { name: 'System Program', category: 'system-program' },
@@ -1520,7 +1521,7 @@ export function parseSolanaTransaction(
 
   const boundedScore = Math.min(100, Math.max(0, riskScore));
 
-  return {
+  const baseRecord: TransactionRecord = {
     signature,
     slot: raw.slot,
     blockTime: raw.blockTime,
@@ -1559,4 +1560,13 @@ export function parseSolanaTransaction(
     retrievedAt: Date.now(),
     rpcEndpointUsed: endpointUsed,
   };
+
+  const solanaAdapter = new SolanaProtocolAdapter();
+  const universalEnvelope = solanaAdapter.normalizeTransaction(baseRecord);
+  const universalAlerts = evaluateUniversalTransaction(universalEnvelope);
+
+  baseRecord.universalEnvelope = universalEnvelope;
+  baseRecord.universalAlerts = universalAlerts;
+
+  return baseRecord;
 }

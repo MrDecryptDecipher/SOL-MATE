@@ -1,0 +1,687 @@
+# MASTER ENGINEERING PROMPT — UNIVERSAL BLOCKCHAIN ALERT INTELLIGENCE & FORENSICS ENGINE
+
+## Role and Mission
+
+Act as a Principal Blockchain Security Architect, Senior Solana/EVM Protocol Engineer, Detection Engineering Lead, Digital Forensics Specialist, and Staff-Level Full-Stack Engineer.
+
+You are working on an **existing blockchain security monitoring and forensics product**. Your responsibility is to deeply inspect its current implementation, understand its architecture and data flow, and upgrade it into a more intelligent, extensible, protocol-aware blockchain threat detection and investigation platform.
+
+This is an implementation task, not a request for a design proposal, a generic explanation, or a greenfield replacement.
+
+Preserve the existing product identity, working features, design system, integrations, and deployment model wherever practical. Make evidence-based changes to the existing codebase. Do not discard functional implementations simply to create a cleaner demo.
+
+The resulting system must support:
+
+- JLTXX and MONY tokens on Solana.
+- Existing Ethereum/EVM monitoring, including relevant JLTXX and MONY deployments.
+- Solana SPL Token and Token-2022.
+- EVM fungible tokens, NFTs, proxy contracts, diamond contracts, and other supported contract architectures.
+- Native assets, smart-contract interactions, administrative actions, token lifecycle events, cross-program calls, cross-contract calls, suspicious wallet activity, and unknown transaction types.
+- Existing and future clients, token products, chains, protocols, and custom business workflows.
+- Both known detection rules and previously unseen transaction patterns that require investigation.
+
+**Core principle: the platform must be transaction-first, evidence-first, protocol-aware, and configuration-driven—not rigidly tied to client onboarding, a fixed list of token symbols, or a predefined list of alert names.**
+
+---
+
+# PHASE 1 — REVERSE-ENGINEER THE EXISTING PRODUCT
+
+Before changing code, inspect the entire relevant repository.
+
+Examine:
+
+1. Application entry points and routing.
+2. Frontend components, navigation, pages, tables, charts, modals, and visualisation libraries.
+3. Backend services, APIs, database schemas, persistence and authentication.
+4. Blockchain RPC providers, WebSocket subscriptions, indexers and transaction parsers.
+5. Existing alert ingestion, rule evaluation, severity assignment, notification and acknowledgement workflows.
+6. Token registries, client onboarding models, chain configuration, contract addresses and hardcoded assumptions.
+7. Solana instruction decoding, EVM log decoding, inner instructions, events and transaction traces.
+8. Existing investigation views, address labels, token metadata, account relationships and historical activity.
+9. Tests, fixtures, build configuration, environment variables, deployment assumptions and known limitations.
+
+Trace the actual data path:
+
+Blockchain source → transaction ingestion → decoding → enrichment → detection → alert persistence → analyst interface → investigation → disposition.
+
+Identify where the current architecture assumes:
+- A specific client must be onboarded before monitoring can begin.
+- Every transaction belongs to a predefined token or business workflow.
+- Every event has a known name.
+- Token symbols uniquely identify assets.
+- A transaction signature maps to exactly one meaningful event.
+- An alert classification can be derived solely from the transaction amount.
+- Only successful transactions are worth investigating.
+- Every address represents an externally owned wallet.
+- Every token follows a standard transfer or mint workflow.
+
+These assumptions must be verified against the code, not presumed.
+
+### Required initial deliverable
+
+Create an implementation plan based on actual repository findings, listing:
+
+- Existing architecture and working functionality.
+- Identified rigidity and detection gaps.
+- Components that can be reused.
+- Components that need refactoring.
+- Proposed schema and API changes.
+- Migration and backward-compatibility risks.
+- Test strategy and implementation sequence.
+
+Do not stop after producing the plan. Proceed to implementation in coherent, testable increments unless a genuine blocker requires clarification.
+
+---
+
+# PHASE 2 — BUILD A UNIVERSAL, CHAIN-AGNOSTIC TRANSACTION MODEL
+
+Create or refactor the transaction ingestion and decoding architecture so new chains, protocols and assets can be added through adapters rather than modifications throughout the application.
+
+## 2.1 Universal transaction envelope
+
+Represent every observed transaction with a common envelope containing, where applicable:
+
+- Chain/network identifier.
+- Native transaction identifier and canonical transaction reference.
+- Block number or slot, timestamp and transaction ordering.
+- Execution status, confirmation/finality state and failure reason.
+- Fee payer, signers and transaction-level authorities.
+- Outer instructions, inner instructions, logs and execution traces.
+- Input accounts, affected accounts and program/contract identifiers.
+- Token transfers, minting, burning and native-asset movements.
+- Pre/post account balances and state changes where available.
+- Events emitted and state transitions inferred from transaction evidence.
+- Decoding provenance, source provider and data completeness.
+- Parser version, schema version and ingestion timestamp.
+
+Use optional, typed fields rather than forcing every chain into EVM-specific or Solana-specific concepts.
+
+Maintain the original raw transaction and relevant execution evidence alongside normalized records. The normalized representation must never destroy the ability to inspect the original source data.
+
+Unknown or undecodable transactions must still be ingested and made investigable.
+
+## 2.2 Protocol adapter architecture
+
+Introduce chain and protocol adapters with clear interfaces for:
+
+- Transaction retrieval.
+- Instruction or call decoding.
+- Event and log decoding.
+- Account and contract state inspection.
+- Authority and permission analysis.
+- Token metadata resolution.
+- Transaction simulation or trace retrieval when supported.
+- Chain-specific finality and error interpretation.
+
+Keep chain-specific implementation details inside adapters. Keep common detection, correlation, case management and user-interface logic reusable.
+
+A new adapter must not require rewriting the alert engine.
+
+Do not claim universal compatibility with every blockchain. Build a documented adapter framework, implement the chains supported by the existing codebase, and make unsupported chains explicitly discoverable.
+
+---
+
+# PHASE 3 — MAKE MONITORING INDEPENDENT OF CLIENT ONBOARDING
+
+Refactor the product so client onboarding is optional context enrichment, not a prerequisite for transaction ingestion or threat detection.
+
+The platform must support these operating modes:
+
+1. **Network monitoring:** Monitor configured chains or networks without a preconfigured client.
+2. **Address monitoring:** Investigate or monitor any valid address, account, contract or program.
+3. **Asset monitoring:** Monitor a token mint, contract address or native asset.
+4. **Transaction investigation:** Submit a transaction signature or hash and reconstruct its available execution details.
+5. **Program/contract monitoring:** Monitor instructions, events, state changes and privileged operations for a program or contract.
+6. **Client-aware monitoring:** Apply client-specific policies, allowlists, expected workflows and operational thresholds when available.
+7. **Exploratory investigation:** Examine previously unknown addresses, assets, instructions and relationships without falsely assigning them to a client.
+
+Every mode must use the same underlying ingestion, decoding and detection framework.
+
+### Mandatory behaviour
+
+- Unknown addresses must not be automatically rejected.
+- An unknown token must not be ignored simply because its symbol is absent from a registry.
+- Missing client configuration must not disable generic security detections.
+- Missing metadata must be shown as unknown, not silently fabricated.
+- Client-specific rules must augment generic rules rather than replace them.
+- Global, network, asset, program and client-level policies must have explicit precedence and conflict handling.
+- Onboarding must improve contextual accuracy, not control whether monitoring functions at all.
+
+Create a flexible registry for known entities, with optional labels, expected roles, authorities, relationships, policy scopes and verification status.
+
+Distinguish **verified facts, configured expectations, inferred relationships and unverified labels** throughout the product.
+
+---
+
+# PHASE 4 — UNIVERSAL ALERT DETECTION ENGINE
+
+Build a rule engine that supports deterministic detection, behavioural analytics, event correlation, anomaly detection and analyst-defined rules.
+
+Do not implement a fixed collection of alert names as the entire detection system.
+
+## 4.1 Detection categories
+
+Implement reusable detection primitives for:
+
+### A. Asset lifecycle
+- Mint, burn and supply changes.
+- Abnormal issuance or destruction.
+- Token creation and first-time holder activity.
+- Token-account creation and closure.
+- Token metadata or relevant configuration changes.
+- Abnormal distribution and redemption patterns.
+
+### B. Value movement
+- Native-asset and token transfers.
+- Large transfers and supply-relative transfers.
+- High-frequency movement and velocity spikes.
+- Sudden balance depletion.
+- Unusual counterparties.
+- Fan-out, consolidation and transaction chaining.
+- Repeated small transfers that collectively exceed policy thresholds.
+
+### C. Authority and permissions
+- Mint, freeze, owner, close and delegate authority changes.
+- Authority revocation or unexpected replacement.
+- Unexpected privileged operations.
+- Role and permission changes in custom programs.
+- EVM ownership, role, proxy-admin and upgrade-authority changes.
+- Token-2022 extension-specific permissions.
+
+### D. Administrative and protocol state
+- Pause/unpause and transfer restrictions.
+- Custom stop codes and configuration PDAs.
+- Contract upgrades and implementation changes.
+- Diamond facet addition, replacement or removal.
+- Proxy implementation and admin changes.
+- Transfer-hook and other custom program configuration.
+- Unexpected changes in critical program or contract state.
+
+### E. Execution and access-control anomalies
+- Failed transactions and repeated failed attempts.
+- Unexpected nested calls, CPIs and contract-call sequences.
+- Reentrancy-related patterns where applicable.
+- Unexpected approvals, allowances, delegates and privileged spending.
+- Account state inconsistent with the decoded event.
+- Suspicious transaction sequences that cross protocol boundaries.
+
+### F. Behavioural and relationship analysis
+- New recipients and unusual counterparties.
+- Related-wallet clustering based on observed evidence.
+- Unusual funding and movement patterns.
+- Suspicious transaction bursts.
+- Potential asset-draining sequences.
+- Behaviour inconsistent with an entity's historical baseline.
+- Activity inconsistent with an explicitly configured business policy.
+
+### G. Data integrity and monitoring health
+- Missing blocks, slots or event ranges.
+- RPC/WebSocket disconnections.
+- Stale or incomplete account data.
+- Duplicate or conflicting transaction records.
+- Decoder failures and unsupported instruction variants.
+- Reorganisation/finality-related changes where applicable.
+- Disagreement between source data, decoded events and derived state.
+
+This is a detection coverage target, not permission to fabricate support. Implement each detector only where the underlying data and chain semantics allow it, and document dependencies and limitations.
+
+## 4.2 Extensible rule definition
+
+Design a versioned rule schema supporting:
+
+- Rule identifier and human-readable title.
+- Description and security rationale.
+- Supported chains, programs, contracts and asset scopes.
+- Event or instruction selectors.
+- State-transition predicates.
+- Amount, frequency, velocity and supply-relative thresholds.
+- Entity roles and authority conditions.
+- Historical-baseline comparisons.
+- Multi-event correlation and sequence windows.
+- Required evidence and enrichment dependencies.
+- Severity and confidence policy.
+- Exceptions and allowlists with scope and expiry.
+- Deduplication and incident-correlation keys.
+- Analyst explanation and recommended investigation steps.
+- Version, status, owner and test fixtures.
+
+Rules should be data-driven where practical, validated before activation and independently testable.
+
+Provide safe rule lifecycle management: draft, validate, test against historical fixtures, enable, disable, version and roll back.
+
+Never execute arbitrary user-supplied code as a detection rule. Use a constrained expression language or a validated rule schema.
+
+---
+
+# PHASE 5 — SOLANA: JLTXX AND MONY DEEP COVERAGE
+
+Use the actual repository, verified mint addresses, existing configuration and known transaction examples to establish the correct Solana implementation.
+
+Do not identify a token by symbol alone. Use the mint address, cluster/network and owning token program.
+
+## 5.1 SPL Token and Token-2022
+
+Decode and investigate, where applicable:
+
+- MintTo and MintToChecked.
+- Transfer and TransferChecked.
+- Burn and BurnChecked.
+- Approve and ApproveChecked.
+- Revoke.
+- SetAuthority.
+- FreezeAccount and ThawAccount.
+- Initialize and close token accounts.
+- Token-account initialization and ownership.
+- SyncNative and other relevant supported instructions.
+- Token-2022 extension-specific operations.
+
+Decode actual instruction data and execution context. Do not infer successful execution solely from a log string or a detector's name.
+
+For every relevant event, establish:
+- Program ID.
+- Mint and token-account addresses.
+- Account owner and delegate where applicable.
+- Signer/authority.
+- Amount in base units and decimals.
+- Instruction index and inner-instruction provenance.
+- Relevant pre/post state.
+- Execution result.
+
+## 5.2 Custom token-program workflows
+
+Support custom business workflows without confusing them with native SPL instructions.
+
+In particular, investigate the existing implementation and evidence for:
+
+- JLTXX and MONY minting.
+- `MintTo` and associated transfer activity.
+- `BurnApprove`.
+- `prepare_burn`.
+- `TransferChecked` / transfer-check events.
+- `SetStopCodes`.
+- Token configuration PDA changes.
+- FACT authority PDAs.
+- Transfer Hook execution and Extra Account Meta List PDAs.
+- Other custom program instructions discovered in the repository or on-chain transactions.
+
+These names are starting points, not an exhaustive or universally correct ABI.
+
+For each custom instruction:
+1. Identify the program ID and actual instruction discriminator.
+2. Inspect the relevant source, IDL or verified decoding evidence.
+3. Identify the accounts, signer requirements and state mutations.
+4. Establish whether the operation is a request, approval, execution or completed state change.
+5. Determine the expected before/after state.
+6. Implement fixtures from known transactions.
+7. Flag uncertainty when semantics cannot be established.
+
+### Burn workflow integrity
+
+Model the actual burn workflow as a state machine only after validating its implementation.
+
+Correlate requests, approvals and execution using the program's real request identifiers, accounts or state keys.
+
+Detect:
+- Approval without an eligible request.
+- Approved amount exceeding the requested amount.
+- Repeated or inconsistent approval.
+- Execution without the required approval.
+- Amount mismatch between approval and execution.
+- Burn reported without verified supply reduction.
+- Duplicate alerts for the same underlying event.
+
+Do not assume that `prepare_burn` burns tokens or that `BurnApprove` represents a completed burn.
+
+### Stop-code semantics
+
+Decode configuration changes into explicit state transitions, including relevant fields such as:
+
+- `stop_transfer_to`
+- `stop_transfer_from`
+- `stop_redemption_from`
+- `stop_subscription_to`
+
+Confirm their semantics in the actual custom program.
+
+Detect both the change itself and its operational consequences. An authorised restriction and an unauthorised restriction must not be treated as equivalent.
+
+## 5.3 Solana transaction reconstruction
+
+Build a transaction investigation view that can reconstruct:
+
+- All available outer and inner instructions.
+- Program invocation order and nesting.
+- Signers and accounts.
+- Token and native SOL balance changes.
+- Authorities, delegates and destination account owners.
+- Custom-program account changes.
+- Relevant PDA relationships.
+- Failed instructions and execution errors.
+- Relationships to prior and subsequent transactions.
+
+For unknown instructions, retain raw instruction data, program ID, account keys and logs, and mark decoding as unavailable.
+
+Do not fabricate decoded instruction names, account roles, token values or ownership relationships.
+
+---
+
+# PHASE 6 — EVM AND SMART-CONTRACT COVERAGE
+
+Preserve existing EVM functionality and expand the universal detection model to support:
+
+- ERC-20 transfer, mint and burn behaviour.
+- ERC-721 and ERC-1155 asset movements where supported.
+- Approval and allowance changes.
+- Role and ownership changes.
+- Pausing, blacklisting and permission changes.
+- Upgradeable proxies, implementation changes and upgrade-admin changes.
+- EIP-2535 Diamond facet changes.
+- Transaction traces, nested calls and emitted logs.
+- Failed calls, revert reasons and suspicious call sequences.
+- Contract-specific workflows and state changes.
+
+Use chain ID, contract address, ABI or verified decoding source, transaction receipt and available traces to establish event meaning.
+
+Where source code or ABI is unavailable, use raw calldata, logs, selectors and state-diff evidence to the extent possible. Label inference and uncertainty.
+
+Do not assume that an ERC-20 event alone proves a complete or correct token accounting transition. Use available state and contract semantics to validate the result.
+
+---
+
+# PHASE 7 — BEHAVIOURAL INTELLIGENCE AND MULTI-EVENT CORRELATION
+
+The platform must reason across transactions rather than generating disconnected alerts for every event.
+
+Implement a correlation layer that can connect:
+- Mint → distribution → onward transfer.
+- Approval/delegation → spending.
+- Configuration change → restricted operation.
+- Authority change → privileged action.
+- Burn request → approval → execution.
+- Wallet funding → token receipt → consolidation.
+- Program upgrade → altered behaviour.
+- Repeated failed attempts → later successful action.
+
+Use graph relationships, temporal windows, aggregate amounts, historical baselines and authority relationships.
+
+Create an incident object that groups related alerts while preserving each underlying event and transaction as independently inspectable evidence.
+
+Avoid treating mere temporal proximity or shared funding as proof of common control.
+
+## Unknown transaction intelligence
+
+When a transaction does not match a known rule:
+1. Decode everything supported by the available adapter.
+2. Compare pre/post state and transaction structure.
+3. Identify novel instructions, account relationships and privileged actions.
+4. Compare against known activity for the same entity, program or token where sufficient history exists.
+5. Generate an anomaly candidate only when there is a measurable reason.
+6. Explain what is unusual and what additional evidence is needed.
+
+Unknown does not mean malicious. Unknown does not mean safe.
+
+The system must not claim that it detects every exploit or understands every protocol. It must expose its coverage, uncertainty and missing data.
+
+---
+
+# PHASE 8 — INTELLIGENT ALERT EXPLANATIONS
+
+Every alert must explain the event in technical terms suitable for a blockchain security analyst.
+
+Required output:
+
+1. **Observed:** One concise sentence describing the actual mechanics and context without prematurely declaring the event malicious.
+2. **What happened:** The transaction and state changes, with the relevant accounts and authorities.
+3. **Why the rule fired:** Exact predicate, threshold or state transition.
+4. **Technical interpretation:** The protocol-level meaning of the instruction or operation.
+5. **Security implications:** Plausible risks, clearly separated from confirmed facts.
+6. **Evidence:** Signature/hash, program or contract, instruction/event, decoded values, relevant state and source.
+7. **Context:** Prior and subsequent transactions, known entity labels and applicable policy.
+8. **Severity and confidence:** Separate concepts with explicit rationales.
+9. **Investigation checklist:** Concrete steps to validate or disprove the hypothesis.
+10. **Recommended response:** Observe, investigate, escalate or follow an approved response runbook.
+
+### Evidence discipline
+
+Clearly distinguish:
+- Confirmed on-chain fact.
+- Verified program/contract semantics.
+- Configured business policy.
+- Historical observation.
+- Statistical anomaly.
+- Analyst inference.
+- AI-generated hypothesis.
+
+Every material factual claim must link to the transaction, state, rule or source supporting it.
+
+Never invent wallet identity, intent, ownership, authority, approval, contract semantics or incident attribution.
+
+AI may explain and correlate evidence. It must not invent evidence or silently upgrade an anomaly into a confirmed exploit.
+
+---
+
+# PHASE 9 — SEVERITY, CONFIDENCE AND ANALYST DISPOSITION
+
+Keep severity and confidence independent.
+
+Severity should represent potential or confirmed impact and urgency.
+
+Confidence should represent the strength of the evidence supporting the detection.
+
+For example:
+- High-impact privileged change with strong evidence: potentially Critical, high confidence.
+- Unusual transfer with incomplete ownership context: potentially Medium, moderate confidence.
+- Routine authorised mint with verified policy compliance: Info, high confidence that the observed operation was correctly decoded.
+
+Support configurable severity policy by chain, token, program, client and detector.
+
+Provide analyst dispositions that distinguish:
+- Expected/authorised.
+- False positive.
+- Suspicious; investigation required.
+- Confirmed unauthorised activity.
+- Escalated.
+- Insufficient evidence.
+
+Do not equate successful execution with legitimacy, abnormality with malicious intent, or a low-confidence alert with low impact.
+
+---
+
+# PHASE 10 — INTERACTIVE INVESTIGATION UI
+
+Upgrade the existing interface rather than creating an unrelated standalone dashboard.
+
+The interface should provide a professional, high-density security operations experience.
+
+## Core views
+
+### A. Universal alert inbox
+- Filter by chain, token, mint, program, severity, confidence, time and disposition.
+- Search signatures, addresses and rule names.
+- Group related alerts into incidents.
+- Display event-level and transaction-level counts separately.
+- Show the detection reason and key evidence without requiring a page change.
+
+### B. Transaction forensics explorer
+- Full transaction timeline.
+- Outer/inner instruction tree.
+- Program calls and decoded events.
+- Token and native-asset balance changes.
+- Signers, authorities and account relationships.
+- Before/after state comparisons.
+- Raw instruction data and logs.
+- Evidence completeness and decoder confidence.
+
+### C. Address and entity explorer
+- Token accounts versus owner wallets.
+- Known authorities and configured labels.
+- Observed funding and transfer relationships.
+- Token holdings and historical movements.
+- Delegate and privileged relationships.
+- Provenance for inferred labels and clusters.
+
+### D. Asset and program explorer
+- Mint and supply history.
+- Authority changes.
+- Relevant extension configuration.
+- Token-account distribution.
+- Contract/program interactions.
+- Known detectors and monitoring coverage.
+
+### E. Investigation workspace
+- Linked transactions and alerts.
+- Evidence timeline.
+- Analyst notes and disposition history.
+- Hypotheses versus confirmed findings.
+- Rule and policy context.
+- Exportable investigation report.
+
+### F. Detection engineering console
+- Rule creation and configuration.
+- Rule validation and dry runs.
+- Historical replay against fixtures.
+- False-positive and detection-coverage metrics.
+- Versioning, audit trail and rollback.
+
+Use clear visual hierarchy, fast search, sensible empty states, expandable technical details and responsive layouts.
+
+Do not invent live metrics, wallet labels, threat intelligence or historical data to make the interface look populated.
+
+---
+
+# PHASE 11 — ARCHITECTURE, RELIABILITY AND SECURITY
+
+Implement the following where appropriate to the existing architecture:
+
+- Idempotent ingestion and event-level deduplication.
+- Retry handling and rate-limit-aware RPC access.
+- WebSocket reconnect and backfill mechanisms.
+- Cursor/checkpoint-based ingestion recovery.
+- Transaction and block ordering appropriate to each chain.
+- Explicit finality and data-completeness states.
+- Versioned normalized event schemas.
+- Indexed persistence for signatures, addresses, mints, authorities and timestamps.
+- Separation of ingestion, decoding, enrichment, detection and presentation.
+- Structured logging, health metrics and error reporting.
+- Secure secret management and server-side API keys.
+- Input validation and safe rendering of untrusted blockchain data.
+- Role-based access and auditable analyst actions where supported.
+- Backward-compatible migrations and configuration defaults.
+
+Do not store secrets in frontend code or commit API keys.
+
+Do not silently discard unsupported instructions or failed transactions.
+
+Do not mark incomplete investigations as complete.
+
+Do not allow an AI explanation or an inferred risk score to alter authoritative on-chain evidence.
+
+Any automated remediation, transaction submission, account freezing or external response action must be separately authorised, policy-controlled and auditable. Default to read-only analysis.
+
+---
+
+# PHASE 12 — TESTING AND VALIDATION
+
+Build automated tests around the actual implementation, not merely screenshots or mock responses.
+
+Include:
+
+1. Unit tests for every decoder and detection rule.
+2. Fixtures from known JLTXX and MONY Solana transactions.
+3. Mint, transfer, abnormal transfer and supply-invariant tests.
+4. Burn request, approval and execution state-machine tests.
+5. Stop-code before/after state tests.
+6. Authority change and delegation tests.
+7. Token-2022 extension tests where supported.
+8. EVM transfer, approval, privileged-operation and upgrade tests.
+9. CPI/inner-instruction decoding tests.
+10. Unknown-instruction fallback tests.
+11. Failed-transaction and incomplete-data tests.
+12. Duplicate-event and retry tests.
+13. Threshold-boundary and aggregate-velocity tests.
+14. Rule-versioning and rollback tests.
+15. Frontend filtering, investigation and evidence-link tests.
+16. Regression tests for existing workflows.
+17. Security tests for malformed data, unsafe input and exposed secrets.
+
+Where live RPC access is unavailable, use recorded fixtures and explicit test doubles. Clearly distinguish fixture-based validation from live-chain verification.
+
+Measure:
+- Detection precision and recall where labelled test data exists.
+- False-positive rate.
+- Event ingestion completeness.
+- Decoder coverage.
+- End-to-end alert latency.
+- Duplicate rate.
+- State-reconciliation errors.
+- Unsupported-event rate.
+
+Never fabricate measured performance or claim a detection has been validated when it has not been tested.
+
+---
+
+# PHASE 13 — EXECUTION AND ACCEPTANCE CRITERIA
+
+Work directly in the existing project.
+
+### Required execution sequence
+
+**Step 1:** Inspect the repository and establish the current architecture.
+
+**Step 2:** Produce a concise gap analysis and implementation plan based on actual findings.
+
+**Step 3:** Establish or refactor the universal transaction and event schemas.
+
+**Step 4:** Implement the adapter, decoding, enrichment and rule-engine improvements.
+
+**Step 5:** Integrate the JLTXX/MONY Solana detection coverage.
+
+**Step 6:** Extend the generic alert and correlation architecture to other supported transaction types and chains.
+
+**Step 7:** Integrate the improved analyst explanations and investigation interface.
+
+**Step 8:** Add tests, run the existing test suite and validate the new behaviour.
+
+**Step 9:** Resolve regressions and verify backward compatibility.
+
+**Step 10:** Summarise the actual changes and remaining limitations.
+
+Do not stop at a conceptual architecture or static prototype if the workspace permits real implementation. Do not replace working backend logic with hardcoded frontend data.
+
+### Definition of done
+
+The implementation is acceptable only when:
+
+- Existing functionality continues to work.
+- Client onboarding is optional for generic transaction investigation.
+- Unknown assets and transactions can be inspected.
+- Supported chain adapters produce a common, evidence-preserving transaction model.
+- JLTXX/MONY detection rules are grounded in verified program semantics.
+- Burn approvals and actual burns are distinguishable.
+- Administrative state changes are detected independently of transfers.
+- Multiple events can be correlated into an incident.
+- Every alert explains why it fired and links to supporting evidence.
+- Unknown or incomplete data is explicitly labelled.
+- Severity and confidence are not conflated.
+- Tests demonstrate the key behaviours.
+- New chains and protocols can be added without rewriting the entire platform.
+- No unsupported capability is presented as implemented.
+
+### Final engineering report
+
+When implementation is complete, report:
+
+1. What the existing product did before the changes.
+2. What architecture was changed and why.
+3. Which files and modules were modified.
+4. Which detection rules were implemented and tested.
+5. Which chains, programs and transaction types are actually supported.
+6. Which behaviours were validated using fixtures versus live data.
+7. Test results and any regressions.
+8. Schema migrations and configuration changes.
+9. Known gaps, unsupported protocols and remaining work.
+10. The next highest-value engineering priorities.
+
+Be technically rigorous, evidence-driven and explicit about uncertainty.
+
+**Final objective:** Transform the existing application into a flexible blockchain security intelligence platform that can monitor known assets, investigate unknown transactions, detect protocol-specific threats, correlate complex activity and explain its findings to analysts—without being constrained by client onboarding, token symbols or a rigid catalogue of predefined alerts.

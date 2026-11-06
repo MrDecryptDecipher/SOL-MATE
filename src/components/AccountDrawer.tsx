@@ -116,19 +116,49 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
           </div>
 
           {account.institutionalInfo && (
-            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-bold text-emerald-300">
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-300 gap-2">
                 <span>{account.institutionalInfo.roleTitle}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-200">
-                  {account.institutionalInfo.ecosystem} • VERIFIED
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 shrink-0">
+                  {account.institutionalInfo.ecosystem} • {account.institutionalInfo.securityStatus}
                 </span>
               </div>
               <div className="text-[11px] text-cyan-300 font-semibold">
                 {account.institutionalInfo.institution} ({account.institutionalInfo.protocol})
               </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
+              <p className="text-[11px] text-slate-200 leading-relaxed">
                 {account.institutionalInfo.description}
               </p>
+              {(account.institutionalInfo.whatItIs ||
+                account.institutionalInfo.whyWhitelisted ||
+                account.institutionalInfo.howItWorks) && (
+                <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-[11px]">
+                  {account.institutionalInfo.whatItIs && (
+                    <div>
+                      <span className="font-mono font-bold text-cyan-300">WHAT IT IS: </span>
+                      <span className="text-slate-200">{account.institutionalInfo.whatItIs}</span>
+                    </div>
+                  )}
+                  {account.institutionalInfo.whyWhitelisted && (
+                    <div>
+                      <span className="font-mono font-bold text-emerald-300">WHY WHITELISTED: </span>
+                      <span className="text-slate-200">{account.institutionalInfo.whyWhitelisted}</span>
+                    </div>
+                  )}
+                  {account.institutionalInfo.howItWorks && (
+                    <div>
+                      <span className="font-mono font-bold text-amber-300">HOW IT WORKS: </span>
+                      <span className="text-slate-200">{account.institutionalInfo.howItWorks}</span>
+                    </div>
+                  )}
+                  {account.institutionalInfo.pairedAddress && (
+                    <div className="font-mono text-[10px] text-cyan-300 pt-1">
+                      Paired Counterpart ({account.institutionalInfo.pairedRole || 'Linked Entity'}):{' '}
+                      <span className="text-white">{account.institutionalInfo.pairedAddress}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
